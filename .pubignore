@@ -1,8 +1,0 @@
-example/.flutter-plugins-dependencies
-example/android/gradle/wrapper/gradle-wrapper.jar
-example/android/gradlew
-example/android/gradlew.bat
-example/build/
-example/ios/Pods/
-example/ios/.symlinks/
-example/.dart_tool/
