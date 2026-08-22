@@ -34,68 +34,27 @@ object MathUtils {
 
     @JvmStatic
     fun calculateAzimuth(rotationVector: RotationVector, displayRotation: DisplayRotation): Azimuth {
-        val rotationMatrix = getRotationMatrixFromVector(rotationVector)
-        return azimuthFromMatrix(remapForDisplay(rotationMatrix, displayRotation))
+        val rotationMatrix = getRotationMatrix(rotationVector)
+        val remappedRotationMatrix = remapRotationMatrix(rotationMatrix, displayRotation)
+        val orientationInRadians = SensorManager.getOrientation(remappedRotationMatrix, FloatArray(AXIS_SIZE))
+        val azimuthInRadians = orientationInRadians[AZIMUTH]
+        val azimuthInDegrees = Math.toDegrees(azimuthInRadians.toDouble()).toFloat()
+        return Azimuth(azimuthInDegrees)
     }
 
-    /**
-     * Heading out the back of the device (rear camera / AR), per Android docs:
-     * `remapCoordinateSystem(inR, AXIS_X, AXIS_Z, outR)`.
-     */
-    @JvmStatic
-    fun calculateCameraAzimuth(rotationVector: RotationVector): Azimuth {
-        val rotationMatrix = getRotationMatrixFromVector(rotationVector)
-        return azimuthFromMatrix(remapForCamera(rotationMatrix))
-    }
-
-    /**
-     * UI + camera headings from accelerometer + magnetometer when rotation vector
-     * is unavailable. Returns null if [SensorManager.getRotationMatrix] fails.
-     */
-    @JvmStatic
-    fun calculateAzimuthsFromAccelMag(
-        accelerometerReading: FloatArray,
-        magnetometerReading: FloatArray,
-        displayRotation: DisplayRotation,
-    ): Pair<Azimuth, Azimuth>? {
-        val rotationMatrix = FloatArray(ROTATION_MATRIX_SIZE)
-        val inclinationMatrix = FloatArray(ROTATION_MATRIX_SIZE)
-        val ok = SensorManager.getRotationMatrix(
-            rotationMatrix,
-            inclinationMatrix,
-            accelerometerReading,
-            magnetometerReading,
-        )
-        if (!ok) return null
-        val ui = azimuthFromMatrix(remapForDisplay(rotationMatrix, displayRotation))
-        val camera = azimuthFromMatrix(remapForCamera(rotationMatrix))
-        return ui to camera
-    }
-
-    private fun getRotationMatrixFromVector(rotationVector: RotationVector): FloatArray {
+    private fun getRotationMatrix(rotationVector: RotationVector): FloatArray {
         val rotationMatrix = FloatArray(ROTATION_MATRIX_SIZE)
         SensorManager.getRotationMatrixFromVector(rotationMatrix, rotationVector.toArray())
         return rotationMatrix
     }
 
-    private fun azimuthFromMatrix(rotationMatrix: FloatArray): Azimuth {
-        val orientationInRadians = SensorManager.getOrientation(rotationMatrix, FloatArray(AXIS_SIZE))
-        val azimuthInDegrees = Math.toDegrees(orientationInRadians[AZIMUTH].toDouble()).toFloat()
-        return Azimuth(azimuthInDegrees)
-    }
-
-    private fun remapForDisplay(rotationMatrix: FloatArray, displayRotation: DisplayRotation): FloatArray {
+    private fun remapRotationMatrix(rotationMatrix: FloatArray, displayRotation: DisplayRotation): FloatArray {
         return when (displayRotation) {
             DisplayRotation.ROTATION_0 -> remapRotationMatrix(rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Y)
             DisplayRotation.ROTATION_90 -> remapRotationMatrix(rotationMatrix, SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X)
             DisplayRotation.ROTATION_180 -> remapRotationMatrix(rotationMatrix, SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y)
             DisplayRotation.ROTATION_270 -> remapRotationMatrix(rotationMatrix, SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X)
         }
-    }
-
-    /** Remap so getOrientation azimuth is the rear-camera pointing direction. */
-    private fun remapForCamera(rotationMatrix: FloatArray): FloatArray {
-        return remapRotationMatrix(rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Z)
     }
 
     private fun remapRotationMatrix(rotationMatrix: FloatArray, newX: Int, newY: Int): FloatArray {

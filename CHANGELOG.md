@@ -4,7 +4,7 @@
   - Fix battery drain from unnecessary magnetometer registration when `TYPE_ROTATION_VECTOR` is available; register only the sensors required for the active path.
   - Unregister any previous listener before `onListen` and unregister the whole listener on cancel/detach (avoids duplicate registrations).
   - Throttle compass stream emissions (~33 ms) to match the sensor delay hint.
-  - Implement real `headingForCameraMode` via `SensorManager.remapCoordinateSystem(..., AXIS_X, AXIS_Z, ...)` (Android AR/camera docs). Accel/mag fallback uses `getRotationMatrix` for UI + camera when possible.
+  - Implement real `headingForCameraMode` via new `HeadingUtils` (`remapCoordinateSystem(..., AXIS_X, AXIS_Z, ...)` per Android AR/camera docs). Accel/mag fallback uses `getRotationMatrix` for UI + camera when possible. Philipp Bobek `MathUtils` left unchanged.
 - **Publishing:**
   - Restore `.pubignore` so build artifacts, Gradle wrappers, Pods, and tooling are excluded from the pub package.
 - **License / docs:**

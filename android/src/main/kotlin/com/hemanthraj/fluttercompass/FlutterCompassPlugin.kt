@@ -16,6 +16,7 @@ import com.hemanthraj.fluttercompass.util.CompassHelper
 import com.hemanthraj.fluttercompass.util.CompassHelper.calculateHeading
 import com.hemanthraj.fluttercompass.util.CompassHelper.convertRadtoDeg
 import com.hemanthraj.fluttercompass.util.CompassHelper.map180to360
+import com.hemanthraj.fluttercompass.util.HeadingUtils
 import com.hemanthraj.fluttercompass.util.MathUtils
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
@@ -167,7 +168,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
 
         private fun updateHeading() {
             val displayRotation = getDisplayRotation()
-            val azimuths = MathUtils.calculateAzimuthsFromAccelMag(
+            val azimuths = HeadingUtils.calculateAzimuthsFromAccelMag(
                 accelerometerReading,
                 magneticReading,
                 displayRotation,
@@ -203,7 +204,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
             val rotationVector = RotationVector(rotationVectorValue[0], rotationVectorValue[1], rotationVectorValue[2])
             val displayRotation = getDisplayRotation()
             val uiAzimuth = MathUtils.calculateAzimuth(rotationVector, displayRotation)
-            val cameraAzimuth = MathUtils.calculateCameraAzimuth(rotationVector)
+            val cameraAzimuth = HeadingUtils.calculateCameraAzimuth(rotationVector)
 
             notifyCompassChangeListeners(
                 uiAzimuth.degrees.toDouble(),
