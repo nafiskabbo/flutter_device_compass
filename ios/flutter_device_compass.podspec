@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_device_compass'
-  s.version          = '2.0.1'
+  s.version          = '2.1.0'
   s.summary          = 'A Flutter compass using device sensors (0-360°, north = 0).'
   s.description      = <<-DESC
 A Flutter compass plugin using device sensors. Heading varies from 0-360, 0 being north.

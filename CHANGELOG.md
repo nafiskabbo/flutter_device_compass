@@ -1,3 +1,25 @@
+## 2.1.0
+
+- **Android:**
+  - Fix fatal crash on `NaN` rotation-vector sensor samples by skipping non-finite samples before calculating azimuth ([#1](https://github.com/nafiskabbo/flutter_device_compass/pull/1) by [@mrweiland](https://github.com/mrweiland)).
+  - Fix potential `NullPointerException` on `display!!` and add safe sensor manager unwrapping ([#4](https://github.com/nafiskabbo/flutter_device_compass/pull/4)).
+  - Implement full local JVM Kotlin test suite for models and math utilities ([#4](https://github.com/nafiskabbo/flutter_device_compass/pull/4)).
+- **iOS:**
+  - Fix heading calculation by falling back to `magneticHeading` when `trueHeading < 0` ([#3](https://github.com/nafiskabbo/flutter_device_compass/pull/3) by [@aqinfh](https://github.com/aqinfh)).
+  - Optimize battery consumption by strictly tying `CMMotionManager` updates to `onListen`/`onCancel` stream lifecycle.
+- **Dart & API:**
+  - Add `FlutterCompass.hasSensors` and `FlutterCompass.isSupported` APIs to detect hardware compass capabilities ([#4](https://github.com/nafiskabbo/flutter_device_compass/pull/4)).
+  - Fix type casting for compass event data from the platform channel ([#2](https://github.com/nafiskabbo/flutter_device_compass/pull/2) by [@aqinfh](https://github.com/aqinfh)).
+  - Add safe index bounds checking and `num` type flexibility to `CompassEvent.fromList` ([#4](https://github.com/nafiskabbo/flutter_device_compass/pull/4)).
+  - Add comprehensive Dart unit and mock platform channel test suite ([#4](https://github.com/nafiskabbo/flutter_device_compass/pull/4)).
+- **Documentation:**
+  - Expand `README.md` with features overview, platform permission setup, practical `StreamBuilder`, sensor check, and one-off reading examples, plus complete API reference table.
+- **Tooling & Build Configurations:**
+  - Exclude build and platform directories from analyzer in `analysis_options.yaml` ([`f99fdac`](https://github.com/nafiskabbo/flutter_device_compass/commit/f99fdac2e4fccf27f86393a728c9af5dcf162c4c)).
+  - Upgrade Android Gradle Plugin to 9.1.0, Kotlin to 2.4.0, and Gradle wrapper to 9.3.1.
+  - Upgrade `permission_handler` to `^13.0.1` in example project.
+  - Clean up legacy iOS Podfile / project configuration in example app.
+
 ## 2.0.1
 
 - Documentation and README badge aligned with latest pub.dev release (`2.0.1`)

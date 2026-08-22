@@ -1,6 +1,6 @@
 name: flutter_device_compass
 description: A Flutter compass plugin using device sensors. Heading is 0-360 degrees (0 = north).
-version: 2.0.1
+version: 2.1.0
 homepage: https://github.com/nafiskabbo/flutter_device_compass
 repository: https://github.com/nafiskabbo/flutter_device_compass
 issue_tracker: https://github.com/nafiskabbo/flutter_device_compass/issues
