@@ -23,7 +23,6 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import kotlin.math.abs
 
 class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodChannel.MethodCallHandler {
     private var compassSensorEventListener: SensorEventListener? = null
@@ -33,8 +32,6 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
     private var accelerometerSensor: Sensor? = null
     private var magneticFieldSensor: Sensor? = null
     private val truncatedRotationVectorValue = FloatArray(4)
-    private val rotationMatrix = FloatArray(9)
-    private var lastHeading = 0f
     private var lastAccuracySensorStatus = 0
     private var compassUpdateNextTimestamp: Long = 0
     private var accelerometerReading = FloatArray(3)
@@ -76,6 +73,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
 
     override fun onListen(arguments: Any?, events: EventSink?) {
         events?.let {
+            unregisterListener()
             compassSensorEventListener = CompassSensorEventListener(events)
             registerListener()
         }
@@ -97,8 +95,8 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
                         + "falling back to accelerometer and magnetic field."
             )
             accelerometerSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            magneticFieldSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         }
-        magneticFieldSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
     }
 
     private fun cleanSensors() {
@@ -112,33 +110,24 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
     private fun registerListener() {
         val sm = sensorManager ?: return
         val listener = compassSensorEventListener ?: return
-        // Does nothing if the sensors already registered.
-        sm.registerListener(listener, magneticFieldSensor, SENSOR_DELAY_MICROS)
         if (isCompassSensorAvailable) {
             sm.registerListener(listener, rotationSensor, SENSOR_DELAY_MICROS)
         } else {
             sm.registerListener(listener, accelerometerSensor, SENSOR_DELAY_MICROS)
+            sm.registerListener(listener, magneticFieldSensor, SENSOR_DELAY_MICROS)
         }
     }
 
     private fun unregisterListener() {
         val sm = sensorManager ?: return
         val listener = compassSensorEventListener ?: return
-        sm.unregisterListener(listener, magneticFieldSensor)
-        if (isCompassSensorAvailable) {
-            sm.unregisterListener(listener, rotationSensor)
-        } else {
-            sm.unregisterListener(listener, accelerometerSensor)
-        }
+        sm.unregisterListener(listener)
     }
 
     private inner class CompassSensorEventListener(val eventSink: EventSink) : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
             if (lastAccuracySensorStatus == SensorManager.SENSOR_STATUS_UNRELIABLE) {
                 Log.d(TAG, "Compass sensor is unreliable, device calibration is needed.")
-                // Update the heading, even if the sensor is unreliable.
-                // This makes it possible to use a different indicator for the unreliable case,
-                // instead of just changing the RenderMode to NORMAL.
             }
             when {
                 event.sensor.type == Sensor.TYPE_ROTATION_VECTOR -> {
@@ -165,20 +154,38 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
                     lastAccuracySensorStatus = accuracy
                 }
 
-                Sensor.TYPE_ROTATION_VECTOR -> Log.v(TAG, "Received rotation vector sensor accuracy $accuracy")
+                Sensor.TYPE_ROTATION_VECTOR -> {
+                    if (lastAccuracySensorStatus != accuracy) {
+                        lastAccuracySensorStatus = accuracy
+                    }
+                    Log.v(TAG, "Received rotation vector sensor accuracy $accuracy")
+                }
+
                 else -> Log.w(TAG, "Unexpected accuracy changed event of type ${sensor.type}")
             }
-
         }
 
         private fun updateHeading() {
+            val displayRotation = getDisplayRotation()
+            val azimuths = MathUtils.calculateAzimuthsFromAccelMag(
+                accelerometerReading,
+                magneticReading,
+                displayRotation,
+            )
+            if (azimuths != null) {
+                notifyCompassChangeListeners(
+                    azimuths.first.degrees.toDouble(),
+                    azimuths.second.degrees.toDouble(),
+                )
+                return
+            }
+
+            // Fallback if getRotationMatrix fails: UI heading only; camera matches UI.
             var heading = calculateHeading(accelerometerReading, magneticReading)
             heading = convertRadtoDeg(heading)
             heading = map180to360(heading)
-
-            notifyCompassChangeListeners(heading.toDouble())
+            notifyCompassChangeListeners(heading.toDouble(), heading.toDouble())
         }
-
 
         private fun updateRotationCompass(rotationVectorValue: FloatArray) {
             // Some devices occasionally deliver NaN rotation-vector samples.
@@ -195,10 +202,13 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
             }
             val rotationVector = RotationVector(rotationVectorValue[0], rotationVectorValue[1], rotationVectorValue[2])
             val displayRotation = getDisplayRotation()
-            val magneticAzimuth = MathUtils.calculateAzimuth(rotationVector, displayRotation)
+            val uiAzimuth = MathUtils.calculateAzimuth(rotationVector, displayRotation)
+            val cameraAzimuth = MathUtils.calculateCameraAzimuth(rotationVector)
 
-            notifyCompassChangeListeners(magneticAzimuth.degrees.toDouble())
-//            notifyCompassChangeListeners(magneticAzimuth.degrees.toDouble(), magneticAzimuth.cardinalDirection)
+            notifyCompassChangeListeners(
+                uiAzimuth.degrees.toDouble(),
+                cameraAzimuth.degrees.toDouble(),
+            )
         }
 
         private fun getDisplayRotation(): DisplayRotation {
@@ -211,20 +221,23 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
             }
         }
 
-        private fun notifyCompassChangeListeners(degrees: Double) {
-            if (degrees.isNaN()) {
+        private fun notifyCompassChangeListeners(degrees: Double, cameraDegrees: Double) {
+            if (degrees.isNaN() || cameraDegrees.isNaN()) {
                 return
             }
 
+            val now = SystemClock.elapsedRealtime()
+            if (now < compassUpdateNextTimestamp) {
+                return
+            }
+            compassUpdateNextTimestamp = now + COMPASS_UPDATE_INTERVAL_MS
+
             val data = DoubleArray(3)
             data[0] = degrees
-            data[1] = 0.0
+            data[1] = cameraDegrees
             data[2] = accuracy.toDouble()
-//            data[3] = magneticReading
-
 
             eventSink.success(data)
-            lastHeading = degrees.toFloat()
         }
 
         private val accuracy: Int
@@ -262,12 +275,9 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
         private const val EVENT_NAME = "hemanthraj/flutter_compass"
         private const val METHOD_NAME = "hemanthraj/flutter_compass/methods"
 
-        // The rate sensor events will be delivered at. As the Android documentation
-        // states, this is only a hint to the system and the events might actually be
-        // received faster or slower than this specified rate. Since the minimum
-        // Android API levels about 9, we are able to set this value ourselves rather
-        // than using one of the provided constants which deliver updates too quickly
-        // for our use case. The default is set to 100ms
+        // Hint to the system; actual delivery may be faster or slower.
+        // ~30 Hz. Throttled again in notifyCompassChangeListeners.
         private const val SENSOR_DELAY_MICROS = 30 * 1000
+        private const val COMPASS_UPDATE_INTERVAL_MS = 33L
     }
 }

@@ -2,11 +2,13 @@
 
 [![pub package](https://img.shields.io/pub/v/flutter_device_compass.svg?logo=dart)](https://pub.dev/packages/flutter_device_compass)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue.svg)](https://pub.dev/packages/flutter_device_compass)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/nafiskabbo/flutter_device_compass/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT%20%2B%20GPLv3-yellow.svg)](https://github.com/nafiskabbo/flutter_device_compass/blob/master/LICENSE)
 
 A Flutter compass plugin using device sensors. Provides real-time device heading, orientation-compensated azimuth (0°–360°, where 0° is North), camera-mode heading for AR/camera overlays, and sensor accuracy.
 
 Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medyas/flutter_compass_v2) (lineage from [hemanthrajv/flutter_compass](https://github.com/hemanthrajv/flutter_compass)), republished as **`flutter_device_compass`** on pub.dev for ongoing maintenance and modern Flutter (3.24+ / 3.44+) & Gradle/Kotlin compatibility.
+
+> **License note:** The package is currently **MIT + GPLv3** because some Android model/math files retain GPLv3 headers from Philipp Bobek’s Compass project. A clean-room MIT-only rewrite is planned for **2.2.0**. See [`LICENSE`](LICENSE).
 
 ---
 
@@ -14,10 +16,11 @@ Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medy
 
 - 🧭 **Heading Calculation:** 0° to 360°, where 0° is North.
 - 📱 **Orientation-Aware:** Automatically compensates for device orientation changes (Portrait, Landscape Left, Landscape Right, Portrait Upside Down).
-- 📷 **Camera Mode Heading:** Heading out the back of the device (`headingForCameraMode`), ideal for Augmented Reality (AR) or camera overlays.
+- 📷 **Camera Mode Heading:** Heading out the back of the device (`headingForCameraMode`), ideal for Augmented Reality (AR) or camera overlays. On Android this uses `SensorManager.remapCoordinateSystem(..., AXIS_X, AXIS_Z, ...)` per platform docs.
 - 🎯 **Sensor Accuracy:** Exposes calibration and accuracy deviation in degrees (`accuracy`).
 - 🔍 **Hardware Detection:** Proactively check sensor availability via `FlutterCompass.hasSensors` before mounting compass views.
 - ⚡ **Robust Sensor Fallbacks:** Uses `Sensor.TYPE_ROTATION_VECTOR` on Android when available with low-pass filtered accelerometer + magnetometer fallback.
+- 🔋 **Efficient Android sensors:** Registers only the sensors needed for the active path (no unused magnetometer when rotation vector is available) and throttles stream emissions.
 - 🛡️ **Crash-Resistant:** Guarded against non-finite / `NaN` sensor readings and negative true headings.
 
 ---
@@ -28,7 +31,7 @@ Add `flutter_device_compass` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_device_compass: ^2.1.0
+  flutter_device_compass: ^2.1.1
 ```
 
 ---
@@ -165,12 +168,20 @@ Future<void> logCurrentHeading() async {
 | Property | Type | Description |
 | :--- | :--- | :--- |
 | `heading` | `double?` | The device heading in degrees around its Z-axis (pointing direction of the top of the phone). Range: `0.0` to `360.0`, where `0.0` is North. `null` if sensor is unavailable. |
-| `headingForCameraMode` | `double?` | The heading in degrees around the device's X-axis (pointing out the back of the phone). Ideal for camera and AR alignment. |
+| `headingForCameraMode` | `double?` | The heading in degrees out the back of the phone (rear camera / AR). Ideal for camera overlays. |
 | `accuracy` | `double?` | Estimated deviation error in degrees (±). `null` if uncalibrated or unavailable. |
+
+## Releases
+
+GitHub Releases / tags track pub.dev versions. Check [Releases](https://github.com/nafiskabbo/flutter_device_compass/releases) for changelogs per version.
+
+## Roadmap
+
+- **2.1.2** — iOS orientation API updates + CoreMotion/heading throttling
+- **2.2.0** — Clean-room Android math rewrite under MIT (remove GPLv3 sources)
 
 ## Maintainer
 
 Maintained with ❤️ by [Nafis Kabbo](mailto:nafiskabbo30@gmail.com).
 
 Contributions, issues, and feature requests are welcome on [GitHub](https://github.com/nafiskabbo/flutter_device_compass)!
-

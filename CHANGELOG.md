@@ -1,3 +1,16 @@
+## 2.1.1
+
+- **Android:**
+  - Fix battery drain from unnecessary magnetometer registration when `TYPE_ROTATION_VECTOR` is available; register only the sensors required for the active path.
+  - Unregister any previous listener before `onListen` and unregister the whole listener on cancel/detach (avoids duplicate registrations).
+  - Throttle compass stream emissions (~33 ms) to match the sensor delay hint.
+  - Implement real `headingForCameraMode` via `SensorManager.remapCoordinateSystem(..., AXIS_X, AXIS_Z, ...)` (Android AR/camera docs). Accel/mag fallback uses `getRotationMatrix` for UI + camera when possible.
+- **Publishing:**
+  - Restore `.pubignore` so build artifacts, Gradle wrappers, Pods, and tooling are excluded from the pub package.
+- **License / docs:**
+  - Document temporary **MIT + GPLv3** dual licensing (some Android model/util files from Philipp Bobek’s Compass). A clean-room **MIT-only** rewrite is planned for **2.2.0**.
+  - Update README features, version pin, roadmap (`2.1.2` iOS, `2.2.0` MIT rewrite).
+
 ## 2.1.0
 
 - **Android:**
