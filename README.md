@@ -2,13 +2,11 @@
 
 [![pub package](https://img.shields.io/pub/v/flutter_device_compass.svg?logo=dart)](https://pub.dev/packages/flutter_device_compass)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue.svg)](https://pub.dev/packages/flutter_device_compass)
-[![License](https://img.shields.io/badge/license-MIT%20%2B%20GPLv3-yellow.svg)](https://github.com/nafiskabbo/flutter_device_compass/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/nafiskabbo/flutter_device_compass/blob/master/LICENSE)
 
 A Flutter compass plugin using device sensors. Provides real-time device heading, orientation-compensated azimuth (0°–360°, where 0° is North), camera-mode heading for AR/camera overlays, and sensor accuracy.
 
 Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medyas/flutter_compass_v2) (lineage from [hemanthrajv/flutter_compass](https://github.com/hemanthrajv/flutter_compass)), republished as **`flutter_device_compass`** on pub.dev for ongoing maintenance and modern Flutter (3.24+ / 3.44+) & Gradle/Kotlin compatibility.
-
-> **License note:** The package is currently **MIT + GPLv3** because some Android model/math files retain GPLv3 headers from Philipp Bobek’s Compass project. A clean-room MIT-only rewrite is planned for **2.2.0**. See [`LICENSE`](LICENSE).
 
 ---
 
@@ -20,7 +18,7 @@ Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medy
 - 🎯 **Sensor Accuracy:** Exposes calibration and accuracy deviation in degrees (`accuracy`).
 - 🔍 **Hardware Detection:** Proactively check sensor availability via `FlutterCompass.hasSensors` before mounting compass views.
 - ⚡ **Robust Sensor Fallbacks:** Uses `Sensor.TYPE_ROTATION_VECTOR` on Android when available with low-pass filtered accelerometer + magnetometer fallback.
-- 🔋 **Tunable updates:** `CompassUpdateOptions` presets (`fine` 0.1°, **`balanced` 0.5° default**, `batterySaver` 1.0°) control heading filter, motion rate, and emit interval.
+- 🔋 **Tunable updates:** `CompassUpdateOptions` presets (**`fine` 0.1° default**, `balanced` 0.5°, `batterySaver` 1.0°) control heading filter, motion rate, and emit interval.
 - 🛡️ **Crash-Resistant:** Guarded against non-finite / `NaN` sensor readings and negative true headings.
 
 ---
@@ -31,7 +29,7 @@ Add `flutter_device_compass` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_device_compass: ^2.1.2
+  flutter_device_compass: ^2.2.0
 ```
 
 ---
@@ -80,9 +78,9 @@ New update tuning is **opt-in** via nullable `[CompassUpdateOptions?]`:
 
 | Call | Platform listen arguments | Behavior |
 | :--- | :--- | :--- |
-| `FlutterCompass.events` | `null` | Same as ≤2.1.1; native defaults |
+| `FlutterCompass.events` | `null` | Same as ≤2.1.1; native **fine** (`0.1°`) defaults |
 | `FlutterCompass.eventsFor()` | `null` | Same as `events` |
-| `FlutterCompass.eventsFor(CompassUpdateOptions.fine)` | `{ headingFilter, motionUpdateHz, updateIntervalMs }` | Custom profile |
+| `FlutterCompass.eventsFor(CompassUpdateOptions.balanced)` | `{ headingFilter, motionUpdateHz, updateIntervalMs }` | Custom profile |
 | `FlutterCompass.eventsFor(null)` | `null` | Explicit legacy path |
 
 Native code treats each map field as optional: missing/`null` keys keep platform defaults. Old app binaries talking to a new plugin (or the reverse during upgrades) therefore stay safe as long as they use `FlutterCompass.events`.
@@ -100,12 +98,12 @@ final subscription = FlutterCompass.events?.listen((CompassEvent event) {
 });
 
 // Optional new API (additive):
-FlutterCompass.eventsFor(CompassUpdateOptions.fine)?.listen((event) { /* ... */ });
+FlutterCompass.eventsFor(CompassUpdateOptions.balanced)?.listen((event) { /* ... */ });
 FlutterCompass.eventsFor(CompassUpdateOptions.batterySaver)?.listen((event) { /* ... */ });
 FlutterCompass.eventsFor(const CompassUpdateOptions(
-  headingFilter: 0.5,
-  motionUpdateHz: 20,
-  updateIntervalMs: 50,
+  headingFilter: 0.1,
+  motionUpdateHz: 30,
+  updateIntervalMs: 33,
 ))?.listen((event) { /* ... */ });
 
 // Cancel when no longer needed
@@ -117,8 +115,8 @@ FlutterCompass.eventsFor(const CompassUpdateOptions(
 
 | Preset | `headingFilter` | Typical feel | Battery | Defaults applied |
 | :--- | :--- | :--- | :--- | :--- |
-| `CompassUpdateOptions.fine` | **0.1°** | Very smooth / chatty needle; good for AR | Higher | motion **30 Hz**, emit ≥**33 ms** |
-| `CompassUpdateOptions.balanced` (**default**) | **0.5°** | Smooth enough for compass UIs | Medium | motion **20 Hz**, emit ≥**50 ms** |
+| `CompassUpdateOptions.fine` (**default**) | **0.1°** | Very smooth / chatty needle; historical default | Higher | motion **30 Hz**, emit ≥**33 ms** |
+| `CompassUpdateOptions.balanced` | **0.5°** | Smooth enough for most UIs | Medium | motion **20 Hz**, emit ≥**50 ms** |
 | `CompassUpdateOptions.batterySaver` | **1.0°** | Slightly steppier; fewer callbacks | Lower | motion **15 Hz**, emit ≥**66 ms** |
 
 - **iOS:** `headingFilter` → `CLLocationManager.headingFilter`; `motionUpdateHz` → CoreMotion sample rate (camera heading); `updateIntervalMs` caps Flutter events.
@@ -217,10 +215,6 @@ Future<void> logCurrentHeading() async {
 ## Releases
 
 GitHub Releases / tags track pub.dev versions. Check [Releases](https://github.com/nafiskabbo/flutter_device_compass/releases) for changelogs per version.
-
-## Roadmap
-
-- **2.2.0** — Clean-room Android math rewrite under MIT (remove GPLv3 sources)
 
 ## Maintainer
 

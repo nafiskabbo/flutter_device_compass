@@ -1,11 +1,12 @@
 /// Tuning for compass stream update rate and battery use.
 ///
-/// Defaults match the **balanced** profile (`headingFilter: 0.5`).
+/// Defaults match the historical / **fine** profile (`headingFilter: 0.1`),
+/// which is what apps used before optional presets existed.
 ///
 /// | Profile | [headingFilter] | Feel | Battery |
 /// | --- | --- | --- | --- |
-/// | [CompassUpdateOptions.fine] (`0.1°`) | Very smooth / chatty | Higher |
-/// | [CompassUpdateOptions.balanced] (`0.5°`) | Smooth, practical default | Medium |
+/// | [CompassUpdateOptions.fine] (`0.1°`, **default**) | Very smooth / chatty | Higher |
+/// | [CompassUpdateOptions.balanced] (`0.5°`) | Smooth, fewer callbacks | Medium |
 /// | [CompassUpdateOptions.batterySaver] (`1.0°`) | Coarser steps | Lower |
 class CompassUpdateOptions {
   /// Minimum heading change in degrees before a new platform sample is useful.
@@ -23,23 +24,22 @@ class CompassUpdateOptions {
   /// Minimum milliseconds between Flutter stream events on both platforms.
   final int updateIntervalMs;
 
-  /// Balanced default: `0.5°` filter, 20 Hz motion, ~20 Hz emit cap.
+  /// Historical default: `0.1°` filter, 30 Hz motion, ~30 Hz emit cap.
   const CompassUpdateOptions({
-    this.headingFilter = 0.5,
-    this.motionUpdateHz = 20,
-    this.updateIntervalMs = 50,
+    this.headingFilter = 0.1,
+    this.motionUpdateHz = 30,
+    this.updateIntervalMs = 33,
   });
 
-  /// Very responsive (`0.1°`). More updates, higher battery use.
-  /// Prefer for AR / camera overlays that need fine motion.
-  static const fine = CompassUpdateOptions(
-    headingFilter: 0.1,
-    motionUpdateHz: 30,
-    updateIntervalMs: 33,
-  );
+  /// Very responsive (`0.1°`) — same as the constructor defaults.
+  static const fine = CompassUpdateOptions();
 
-  /// Default balanced profile (`0.5°`). Good for most compass UIs.
-  static const balanced = CompassUpdateOptions();
+  /// Fewer updates (`0.5°`). Good when Fine feels too chatty.
+  static const balanced = CompassUpdateOptions(
+    headingFilter: 0.5,
+    motionUpdateHz: 20,
+    updateIntervalMs: 50,
+  );
 
   /// Coarser updates (`1.0°`). Better battery, slightly steppier needle.
   static const batterySaver = CompassUpdateOptions(

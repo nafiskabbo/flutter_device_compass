@@ -7,10 +7,10 @@ import UIKit
 public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     CLLocationManagerDelegate
 {
-    /// Default balanced profile (matches Dart [CompassUpdateOptions]).
-    private static let defaultHeadingFilter: CLLocationDegrees = 0.5
-    private static let defaultMotionUpdateHz: Double = 20
-    private static let defaultUpdateIntervalMs: Double = 50
+    /// Default fine profile (matches Dart [CompassUpdateOptions] / historical 0.1°).
+    private static let defaultHeadingFilter: CLLocationDegrees = 0.1
+    private static let defaultMotionUpdateHz: Double = 30
+    private static let defaultUpdateIntervalMs: Double = 33
 
     private var eventSink: FlutterEventSink?
     private var location: CLLocationManager = CLLocationManager()

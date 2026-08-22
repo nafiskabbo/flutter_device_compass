@@ -19,7 +19,7 @@ class _MyAppState extends State<MyApp> {
   bool? _hasSensors;
   CompassEvent? _lastRead;
   DateTime? _lastReadAt;
-  CompassUpdateOptions _options = CompassUpdateOptions.balanced;
+  CompassUpdateOptions _options = CompassUpdateOptions.fine;
   Stream<CompassEvent>? _compassStream;
   CompassEvent? _latestEvent;
   bool _reconnecting = false;

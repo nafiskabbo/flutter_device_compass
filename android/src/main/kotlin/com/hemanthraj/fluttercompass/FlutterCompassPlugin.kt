@@ -10,14 +10,13 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.Display
 import android.view.Surface
-import com.hemanthraj.fluttercompass.model.DisplayRotation
-import com.hemanthraj.fluttercompass.model.RotationVector
+import com.hemanthraj.fluttercompass.heading.BearingCalculator
+import com.hemanthraj.fluttercompass.heading.ScreenOrientation
+import com.hemanthraj.fluttercompass.heading.SensorAttitude
 import com.hemanthraj.fluttercompass.util.CompassHelper
 import com.hemanthraj.fluttercompass.util.CompassHelper.calculateHeading
 import com.hemanthraj.fluttercompass.util.CompassHelper.convertRadtoDeg
 import com.hemanthraj.fluttercompass.util.CompassHelper.map180to360
-import com.hemanthraj.fluttercompass.util.HeadingUtils
-import com.hemanthraj.fluttercompass.util.MathUtils
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.plugin.common.EventChannel
@@ -96,7 +95,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
     private fun applyOptions(arguments: Any?) {
         val map = arguments as? Map<*, *>
         if (map == null) {
-            // Null listen args = legacy / default balanced profile.
+            // Null listen args = legacy / default fine profile (historical 0.1°).
             headingFilterDegrees = DEFAULT_HEADING_FILTER
             updateIntervalMs = DEFAULT_UPDATE_INTERVAL_MS
             sensorDelayMicros = (DEFAULT_UPDATE_INTERVAL_MS * 1000).toInt()
@@ -196,16 +195,16 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
         }
 
         private fun updateHeading() {
-            val displayRotation = getDisplayRotation()
-            val azimuths = HeadingUtils.calculateAzimuthsFromAccelMag(
+            val orientation = currentScreenOrientation()
+            val bearings = BearingCalculator.fromAccelAndMag(
                 accelerometerReading,
                 magneticReading,
-                displayRotation,
+                orientation,
             )
-            if (azimuths != null) {
+            if (bearings != null) {
                 notifyCompassChangeListeners(
-                    azimuths.first.degrees.toDouble(),
-                    azimuths.second.degrees.toDouble(),
+                    bearings.forUi.degrees.toDouble(),
+                    bearings.forCamera.degrees.toDouble(),
                 )
                 return
             }
@@ -219,36 +218,32 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
 
         private fun updateRotationCompass(rotationVectorValue: FloatArray) {
             // Some devices occasionally deliver NaN rotation-vector samples.
-            // Azimuth's init block throws IllegalArgumentException for
-            // non-finite degrees, which escapes onSensorChanged on the main
-            // thread and crashes the host app. The NaN check further down in
-            // notifyCompassChangeListeners runs too late to prevent the
-            // throw, so skip non-finite samples before computing the azimuth.
+            // Skip non-finite samples before constructing SensorAttitude / bearings.
             if (!rotationVectorValue[0].isFinite() ||
                 !rotationVectorValue[1].isFinite() ||
                 !rotationVectorValue[2].isFinite()
             ) {
                 return
             }
-            val rotationVector = RotationVector(rotationVectorValue[0], rotationVectorValue[1], rotationVectorValue[2])
-            val displayRotation = getDisplayRotation()
-            val uiAzimuth = MathUtils.calculateAzimuth(rotationVector, displayRotation)
-            val cameraAzimuth = HeadingUtils.calculateCameraAzimuth(rotationVector)
+            val attitude = SensorAttitude(
+                rotationVectorValue[0],
+                rotationVectorValue[1],
+                rotationVectorValue[2],
+            )
+            val bearings = BearingCalculator.fromRotationVector(
+                attitude,
+                currentScreenOrientation(),
+            )
 
             notifyCompassChangeListeners(
-                uiAzimuth.degrees.toDouble(),
-                cameraAzimuth.degrees.toDouble(),
+                bearings.forUi.degrees.toDouble(),
+                bearings.forCamera.degrees.toDouble(),
             )
         }
 
-        private fun getDisplayRotation(): DisplayRotation {
+        private fun currentScreenOrientation(): ScreenOrientation {
             val rotation = display?.rotation ?: Surface.ROTATION_0
-            return when (rotation) {
-                Surface.ROTATION_90 -> DisplayRotation.ROTATION_90
-                Surface.ROTATION_180 -> DisplayRotation.ROTATION_180
-                Surface.ROTATION_270 -> DisplayRotation.ROTATION_270
-                else -> DisplayRotation.ROTATION_0
-            }
+            return ScreenOrientation.fromSurfaceRotation(rotation)
         }
 
         private fun notifyCompassChangeListeners(degrees: Double, cameraDegrees: Double) {
@@ -316,8 +311,8 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
         private const val EVENT_NAME = "hemanthraj/flutter_compass"
         private const val METHOD_NAME = "hemanthraj/flutter_compass/methods"
 
-        // Matches Dart CompassUpdateOptions.balanced defaults.
-        private const val DEFAULT_HEADING_FILTER = 0.5
-        private const val DEFAULT_UPDATE_INTERVAL_MS = 50L
+        // Matches Dart CompassUpdateOptions.fine / historical defaults.
+        private const val DEFAULT_HEADING_FILTER = 0.1
+        private const val DEFAULT_UPDATE_INTERVAL_MS = 33L
     }
 }
