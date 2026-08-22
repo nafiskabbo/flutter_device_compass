@@ -1,0 +1,30 @@
+# Local / generated tooling (never publish)
+.dart_tool/
+.flutter-plugins-dependencies
+.idea/
+*.iml
+.DS_Store
+build/
+coverage/
+doc/api/
+
+# Example app build artifacts & tooling
+example/.dart_tool/
+example/.flutter-plugins-dependencies
+example/build/
+example/.packages
+example/ios/Pods/
+example/ios/.symlinks/
+example/ios/Flutter/Flutter.podspec
+example/ios/Flutter/Generated.xcconfig
+example/ios/Flutter/ephemeral/
+example/android/.gradle/
+example/android/local.properties
+example/android/**/build/
+example/android/gradle/wrapper/gradle-wrapper.jar
+example/android/gradlew
+example/android/gradlew.bat
+
+# Keep example sources publishable without Gradle wrappers / caches
+**/.gradle/
+**/local.properties

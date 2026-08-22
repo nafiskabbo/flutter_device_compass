@@ -1,6 +1,5 @@
 package com.hemanthraj.fluttercompass.util
 
-import java.util.GregorianCalendar
 import kotlin.math.atan2
 import kotlin.math.sqrt
 
