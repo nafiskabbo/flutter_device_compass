@@ -1,6 +1,6 @@
 ## 2.1.2
 
-- **Non-breaking:** Existing `FlutterCompass.events` / `hasSensors` call sites keep working with no app code changes. `CompassUpdateOptions` / `eventsFor` / `resetEvents` are additive.
+- **Non-breaking:** Existing `FlutterCompass.events` / `hasSensors` call sites keep working with no app code changes. Listen args stay `null` on the legacy path. `CompassUpdateOptions` / `eventsFor(options?)` / `resetEvents` are additive; options map fields are optional on native.
 - **iOS:**
   - Replace deprecated `UIApplication.shared.statusBarOrientation` with `UIWindowScene.interfaceOrientation` for the same UI heading compensation (portrait / upside-down / landscape).
   - Configurable update tuning via new Dart `CompassUpdateOptions` (default **balanced** `headingFilter: 0.5°` when using platform defaults / null listen args).

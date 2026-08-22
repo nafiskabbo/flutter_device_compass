@@ -25,6 +25,7 @@ class FlutterCompass {
   );
   static Stream<CompassEvent>? _stream;
   static CompassUpdateOptions? _streamOptions;
+  static bool _streamPassedArgs = false;
 
   /// Checks if the device has compass/heading sensors available.
   /// Returns `true` if heading sensors are available on the device, `false` otherwise.
@@ -38,32 +39,37 @@ class FlutterCompass {
   /// Alias for [hasSensors]. Checks if compass functionality is supported.
   static Future<bool?> get isSupported => hasSensors;
 
-  /// Compass stream using platform defaults (same call site as before: no args).
+  /// Compass stream using the legacy listen path (null platform arguments).
   ///
-  /// Equivalent to [eventsFor] with [CompassUpdateOptions.balanced].
-  /// Existing apps that only use this getter do not need code changes.
+  /// Same call site as ≤2.1.1 — **no breaking change**. Platform uses built-in
+  /// balanced defaults when arguments are null.
   static Stream<CompassEvent>? get events => eventsFor();
 
-  /// Compass stream with optional developer-tunable update options.
+  /// Compass stream with optional [CompassUpdateOptions].
   ///
-  /// This is an **additive** API. Prefer presets: [CompassUpdateOptions.fine],
-  /// [CompassUpdateOptions.balanced], [CompassUpdateOptions.batterySaver].
+  /// - `eventsFor()` / [events] → `null` EventChannel arguments (legacy-compatible).
+  /// - `eventsFor(CompassUpdateOptions.fine)` (or any non-null options) → passes a
+  ///   map of nullable-friendly fields; native ignores missing keys and keeps defaults.
   ///
-  /// If you change [options] after listening, cancel existing subscriptions
-  /// first (or call [resetEvents]) so the platform restarts with the new values.
+  /// Additive API only. Cancel existing subscriptions (or call [resetEvents]) before
+  /// switching options so the platform restarts cleanly.
   static Stream<CompassEvent>? eventsFor([
-    CompassUpdateOptions options = const CompassUpdateOptions(),
+    CompassUpdateOptions? options,
   ]) {
     if (kIsWeb) {
       return Stream.empty();
     }
-    if (_stream == null || _streamOptions != options) {
-      _streamOptions = options;
-      // Default/balanced uses null listen args (same as ≤2.1.1). Custom
-      // profiles pass a map; native falls back to balanced when args are null.
-      final Object? channelArgs =
-          options == CompassUpdateOptions.balanced ? null : options.toMap();
-      _stream = _compassChannel.receiveBroadcastStream(channelArgs).map(
+
+    final resolved = options ?? const CompassUpdateOptions();
+    final passArgs = options != null;
+
+    if (_stream == null ||
+        _streamOptions != resolved ||
+        _streamPassedArgs != passArgs) {
+      _streamOptions = resolved;
+      _streamPassedArgs = passArgs;
+      // Null args when [options] is omitted — identical to older plugin versions.
+      _stream = _compassChannel.receiveBroadcastStream(options?.toMap()).map(
             (dynamic data) => CompassEvent.fromList(
               data as List<dynamic>?,
             ),
@@ -77,5 +83,6 @@ class FlutterCompass {
   static void resetEvents() {
     _stream = null;
     _streamOptions = null;
+    _streamPassedArgs = false;
   }
 }

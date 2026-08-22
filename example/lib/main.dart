@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -19,10 +20,14 @@ class _MyAppState extends State<MyApp> {
   CompassEvent? _lastRead;
   DateTime? _lastReadAt;
   CompassUpdateOptions _options = CompassUpdateOptions.balanced;
+  Stream<CompassEvent>? _compassStream;
+  CompassEvent? _latestEvent;
+  bool _reconnecting = false;
 
   @override
   void initState() {
     super.initState();
+    _compassStream = FlutterCompass.eventsFor(_options);
     _checkHardwareAndPermissions();
   }
 
@@ -34,9 +39,25 @@ class _MyAppState extends State<MyApp> {
     _fetchPermissionStatus();
   }
 
+  /// Switch profiles safely: wait until the previous EventChannel subscription
+  /// is cancelled (next frame), then start a new listen with the new options.
   void _selectOptions(CompassUpdateOptions options) {
-    FlutterCompass.resetEvents();
-    setState(() => _options = options);
+    if (_options == options || _reconnecting) return;
+
+    setState(() {
+      _options = options;
+      _compassStream = null;
+      _reconnecting = true;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      FlutterCompass.resetEvents();
+      setState(() {
+        _compassStream = FlutterCompass.eventsFor(options);
+        _reconnecting = false;
+      });
+    });
   }
 
   @override
@@ -135,7 +156,7 @@ class _MyAppState extends State<MyApp> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Update profile (headingFilter)',
+            'Update profile (optional CompassUpdateOptions)',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
@@ -145,17 +166,25 @@ class _MyAppState extends State<MyApp> {
               ChoiceChip(
                 label: const Text('Fine 0.1°'),
                 selected: _options == CompassUpdateOptions.fine,
-                onSelected: (_) => _selectOptions(CompassUpdateOptions.fine),
+                onSelected: (selected) {
+                  if (selected) _selectOptions(CompassUpdateOptions.fine);
+                },
               ),
               ChoiceChip(
                 label: const Text('Balanced 0.5°'),
                 selected: _options == CompassUpdateOptions.balanced,
-                onSelected: (_) => _selectOptions(CompassUpdateOptions.balanced),
+                onSelected: (selected) {
+                  if (selected) _selectOptions(CompassUpdateOptions.balanced);
+                },
               ),
               ChoiceChip(
                 label: const Text('Battery 1.0°'),
                 selected: _options == CompassUpdateOptions.batterySaver,
-                onSelected: (_) => _selectOptions(CompassUpdateOptions.batterySaver),
+                onSelected: (selected) {
+                  if (selected) {
+                    _selectOptions(CompassUpdateOptions.batterySaver);
+                  }
+                },
               ),
             ],
           ),
@@ -181,14 +210,17 @@ class _MyAppState extends State<MyApp> {
           child: Row(
             children: <Widget>[
               ElevatedButton.icon(
-                onPressed: () async {
-                  final CompassEvent tmp =
-                      await FlutterCompass.eventsFor(_options)!.first;
-                  setState(() {
-                    _lastRead = tmp;
-                    _lastReadAt = DateTime.now();
-                  });
-                },
+                onPressed: _compassStream == null
+                    ? null
+                    : () async {
+                        final CompassEvent tmp = await _compassStream!.first;
+                        if (!mounted) return;
+                        setState(() {
+                          _lastRead = tmp;
+                          _lastReadAt = DateTime.now();
+                          _latestEvent = tmp;
+                        });
+                      },
                 icon: const Icon(Icons.refresh),
                 label: const Text('Read Once'),
               ),
@@ -223,80 +255,105 @@ class _MyAppState extends State<MyApp> {
   }
 
   Widget _buildCompass() {
+    final stream = _compassStream;
+    if (stream == null) {
+      // Brief gap while the previous EventChannel subscription is cancelled.
+      return _buildCompassFace(_latestEvent, showProgress: true);
+    }
+
     return StreamBuilder<CompassEvent>(
       key: ValueKey(_options),
-      stream: FlutterCompass.eventsFor(_options),
+      stream: stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error reading heading: ${snapshot.error}'));
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+        final event = snapshot.data ?? _latestEvent;
+        if (snapshot.hasData) {
+          // Cache last event for seamless profile switches (no setState in build).
+          _latestEvent = snapshot.data;
         }
 
-        final double? direction = snapshot.data?.heading;
-
-        if (direction == null) {
-          return const Center(
-            child: Text('Device does not have sensors or values unavailable!'),
-          );
+        if (event == null) {
+          return const Center(child: CircularProgressIndicator());
         }
 
-        final double? cameraDirection = snapshot.data?.headingForCameraMode;
-        final double? accuracy = snapshot.data?.accuracy;
+        return _buildCompassFace(event, showProgress: false);
+      },
+    );
+  }
 
-        return Column(
+  Widget _buildCompassFace(CompassEvent? event, {required bool showProgress}) {
+    final double? direction = event?.heading;
+
+    if (direction == null) {
+      return Center(
+        child: showProgress
+            ? const CircularProgressIndicator()
+            : const Text('Device does not have sensors or values unavailable!'),
+      );
+    }
+
+    final double? cameraDirection = event?.headingForCameraMode;
+    final double? accuracy = event?.accuracy;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (showProgress)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        Text(
+          '${direction.toStringAsFixed(1)}°',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              '${direction.toStringAsFixed(1)}°',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (cameraDirection != null)
-                  Text(
-                    'Camera: ${cameraDirection.toStringAsFixed(1)}°   ',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
-                  ),
-                Text(
-                  'Accuracy: ${accuracy != null ? "±${accuracy.toStringAsFixed(1)}°" : "Uncalibrated"}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Material(
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              elevation: 4.0,
-              child: Container(
-                padding: const EdgeInsets.all(16.0),
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                ),
-                child: Transform.rotate(
-                  angle: direction * (math.pi / 180) * -1,
-                  child: Image.asset(
-                    'assets/compass.jpg',
-                    width: 260,
-                    height: 260,
-                  ),
-                ),
+            if (cameraDirection != null)
+              Text(
+                'Camera: ${cameraDirection.toStringAsFixed(1)}°   ',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
               ),
+            Text(
+              'Accuracy: ${accuracy != null ? "±${accuracy.toStringAsFixed(1)}°" : "Uncalibrated"}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
             ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 24),
+        Material(
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          elevation: 4.0,
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+            ),
+            child: Transform.rotate(
+              angle: direction * (math.pi / 180) * -1,
+              child: Image.asset(
+                'assets/compass.jpg',
+                width: 260,
+                height: 260,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -66,29 +66,51 @@ No additional permissions are strictly required for sensor access. However, if y
 
 ## Usage Examples
 
+### Backward compatibility (no breaking change)
+
+Existing apps keep working with **zero code changes**:
+
+```dart
+// Legacy API — still valid. EventChannel listen args are null;
+// native plugins apply built-in balanced defaults.
+FlutterCompass.events?.listen((event) { /* ... */ });
+```
+
+New update tuning is **opt-in** via nullable `[CompassUpdateOptions?]`:
+
+| Call | Platform listen arguments | Behavior |
+| :--- | :--- | :--- |
+| `FlutterCompass.events` | `null` | Same as ≤2.1.1; native defaults |
+| `FlutterCompass.eventsFor()` | `null` | Same as `events` |
+| `FlutterCompass.eventsFor(CompassUpdateOptions.fine)` | `{ headingFilter, motionUpdateHz, updateIntervalMs }` | Custom profile |
+| `FlutterCompass.eventsFor(null)` | `null` | Explicit legacy path |
+
+Native code treats each map field as optional: missing/`null` keys keep platform defaults. Old app binaries talking to a new plugin (or the reverse during upgrades) therefore stay safe as long as they use `FlutterCompass.events`.
+
 ### 1. Basic Stream Subscription
 
 ```dart
 import 'package:flutter_device_compass/flutter_device_compass.dart';
 
-// Default balanced profile — same API as before (no breaking change):
+// Default — unchanged from older versions:
 final subscription = FlutterCompass.events?.listen((CompassEvent event) {
   print('Heading: ${event.heading}°');
   print('Camera Mode Heading: ${event.headingForCameraMode}°');
   print('Accuracy Deviation: ±${event.accuracy}°');
 });
 
-// Optional (additive): pick a preset / custom options:
-// FlutterCompass.eventsFor(CompassUpdateOptions.fine)
-// FlutterCompass.eventsFor(CompassUpdateOptions.batterySaver)
-// FlutterCompass.eventsFor(const CompassUpdateOptions(
-//   headingFilter: 0.5,
-//   motionUpdateHz: 20,
-//   updateIntervalMs: 50,
-// ))
+// Optional new API (additive):
+FlutterCompass.eventsFor(CompassUpdateOptions.fine)?.listen((event) { /* ... */ });
+FlutterCompass.eventsFor(CompassUpdateOptions.batterySaver)?.listen((event) { /* ... */ });
+FlutterCompass.eventsFor(const CompassUpdateOptions(
+  headingFilter: 0.5,
+  motionUpdateHz: 20,
+  updateIntervalMs: 50,
+))?.listen((event) { /* ... */ });
 
 // Cancel when no longer needed
 // subscription?.cancel();
+// Before switching profiles: cancel listeners, then FlutterCompass.resetEvents();
 ```
 
 #### Choosing `headingFilter` (and related knobs)
@@ -101,7 +123,7 @@ final subscription = FlutterCompass.events?.listen((CompassEvent event) {
 
 - **iOS:** `headingFilter` → `CLLocationManager.headingFilter`; `motionUpdateHz` → CoreMotion sample rate (camera heading); `updateIntervalMs` caps Flutter events.
 - **Android:** `headingFilter` is a minimum heading delta between emissions; `updateIntervalMs` sets emit throttle and sensor delay hint; `motionUpdateHz` is ignored.
-- Call `FlutterCompass.resetEvents()` (or cancel listeners) before switching options so the platform restarts with the new map.
+- When switching options at runtime, cancel the previous subscription (or call `FlutterCompass.resetEvents()` after cancel) so the EventChannel can restart with new args.
 
 ---
 
