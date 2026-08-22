@@ -2,9 +2,14 @@
 
 - **iOS:**
   - Replace deprecated `UIApplication.shared.statusBarOrientation` with `UIWindowScene.interfaceOrientation` for the same UI heading compensation (portrait / upside-down / landscape).
-  - Reduce Core Location heading spam: `headingFilter` raised from `0.1°` to `1.0°`.
-  - Lower device-motion update rate to 15 Hz (attitude is still sampled on heading events only).
-  - Throttle Flutter stream emissions to ~30 Hz to align with Android.
+  - Configurable update tuning via new Dart `CompassUpdateOptions` (default **balanced** `headingFilter: 0.5°`).
+  - Presets: `fine` (`0.1°`), `balanced` (`0.5°`), `batterySaver` (`1.0°`), passed through the EventChannel listen args.
+- **Android:**
+  - Honor the same `CompassUpdateOptions` for emit interval, sensor delay hint, and minimum heading delta.
+- **Dart & example:**
+  - Add `FlutterCompass.eventsFor(options)` / `FlutterCompass.resetEvents()`.
+  - Example app: Fine / Balanced / Battery profile chips.
+  - README documents filter trade-offs (`0.1` vs `0.5` vs `1.0`).
 
 ## 2.1.1
 

@@ -4,8 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'compass_event.dart';
+import 'compass_update_options.dart';
 
-/// [FlutterCompass] is a singleton class that provides assess to compass events
+/// [FlutterCompass] is a singleton class that provides access to compass events.
 /// The heading varies from 0-360, 0 being north.
 class FlutterCompass {
   static final FlutterCompass _instance = FlutterCompass._();
@@ -23,6 +24,7 @@ class FlutterCompass {
     'hemanthraj/flutter_compass/methods',
   );
   static Stream<CompassEvent>? _stream;
+  static CompassUpdateOptions? _streamOptions;
 
   /// Checks if the device has compass/heading sensors available.
   /// Returns `true` if heading sensors are available on the device, `false` otherwise.
@@ -36,16 +38,37 @@ class FlutterCompass {
   /// Alias for [hasSensors]. Checks if compass functionality is supported.
   static Future<bool?> get isSupported => hasSensors;
 
-  /// Provides a [Stream] of compass events that can be listened to.
-  static Stream<CompassEvent>? get events {
+  /// Compass stream using [CompassUpdateOptions.balanced] defaults (`0.5°`).
+  static Stream<CompassEvent>? get events => eventsFor();
+
+  /// Compass stream with developer-tunable update options.
+  ///
+  /// Prefer presets: [CompassUpdateOptions.fine], [CompassUpdateOptions.balanced],
+  /// [CompassUpdateOptions.batterySaver].
+  ///
+  /// If you change [options] after listening, cancel existing subscriptions
+  /// first (or call [resetEvents]) so the platform restarts with the new values.
+  static Stream<CompassEvent>? eventsFor([
+    CompassUpdateOptions options = const CompassUpdateOptions(),
+  ]) {
     if (kIsWeb) {
       return Stream.empty();
     }
-    _stream ??= _compassChannel.receiveBroadcastStream().map(
-          (dynamic data) => CompassEvent.fromList(
-            data as List<dynamic>?,
-          ),
-        );
+    if (_stream == null || _streamOptions != options) {
+      _streamOptions = options;
+      _stream = _compassChannel.receiveBroadcastStream(options.toMap()).map(
+            (dynamic data) => CompassEvent.fromList(
+              data as List<dynamic>?,
+            ),
+          );
+    }
     return _stream;
+  }
+
+  /// Drops the cached stream so the next [events] / [eventsFor] call can apply
+  /// new [CompassUpdateOptions].
+  static void resetEvents() {
+    _stream = null;
+    _streamOptions = null;
   }
 }

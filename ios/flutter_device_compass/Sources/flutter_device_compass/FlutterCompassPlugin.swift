@@ -7,24 +7,23 @@ import UIKit
 public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     CLLocationManagerDelegate
 {
-    /// Degrees of heading change before Core Location delivers another update.
-    private static let headingFilterDegrees: CLLocationDegrees = 1.0
-    /// Device-motion sample rate (used only when sampling attitude on heading events).
-    private static let motionUpdateInterval: TimeInterval = 1.0 / 15.0
-    /// Cap Flutter stream emissions to roughly match Android (~30 Hz).
-    private static let minEmitInterval: TimeInterval = 1.0 / 30.0
+    /// Default balanced profile (matches Dart [CompassUpdateOptions]).
+    private static let defaultHeadingFilter: CLLocationDegrees = 0.5
+    private static let defaultMotionUpdateHz: Double = 20
+    private static let defaultUpdateIntervalMs: Double = 50
 
     private var eventSink: FlutterEventSink?
     private var location: CLLocationManager = CLLocationManager()
     private var motion: CMMotionManager = CMMotionManager()
     private var lastEmitTimestamp: TimeInterval = 0
+    private var minEmitInterval: TimeInterval = defaultUpdateIntervalMs / 1000.0
 
     init(channel: FlutterEventChannel) {
         super.init()
         location.delegate = self
-        location.headingFilter = Self.headingFilterDegrees
+        location.headingFilter = Self.defaultHeadingFilter
         channel.setStreamHandler(self)
-        motion.deviceMotionUpdateInterval = Self.motionUpdateInterval
+        motion.deviceMotionUpdateInterval = 1.0 / Self.defaultMotionUpdateHz
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -51,6 +50,7 @@ public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
         withArguments arguments: Any?,
         eventSink events: @escaping FlutterEventSink
     ) -> FlutterError? {
+        applyOptions(arguments)
         self.eventSink = events
         lastEmitTimestamp = 0
         location.startUpdatingHeading()
@@ -66,6 +66,26 @@ public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
         return nil
     }
 
+    private func applyOptions(_ arguments: Any?) {
+        let map = arguments as? [String: Any]
+
+        let headingFilter =
+            (map?["headingFilter"] as? NSNumber)?.doubleValue
+            ?? Self.defaultHeadingFilter
+        location.headingFilter = max(headingFilter, 0)
+
+        let motionHz =
+            (map?["motionUpdateHz"] as? NSNumber)?.doubleValue
+            ?? Self.defaultMotionUpdateHz
+        let clampedHz = max(motionHz, 1)
+        motion.deviceMotionUpdateInterval = 1.0 / clampedHz
+
+        let updateMs =
+            (map?["updateIntervalMs"] as? NSNumber)?.doubleValue
+            ?? Self.defaultUpdateIntervalMs
+        minEmitInterval = max(updateMs, 1) / 1000.0
+    }
+
     public func locationManager(
         _ manager: CLLocationManager,
         didUpdateHeading newHeading: CLHeading
@@ -73,7 +93,7 @@ public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
         guard newHeading.headingAccuracy > 0 else { return }
 
         let now = ProcessInfo.processInfo.systemUptime
-        if lastEmitTimestamp > 0, now - lastEmitTimestamp < Self.minEmitInterval {
+        if lastEmitTimestamp > 0, now - lastEmitTimestamp < minEmitInterval {
             return
         }
         lastEmitTimestamp = now

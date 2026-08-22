@@ -85,6 +85,9 @@ void main() {
     test('events stream yields parsed CompassEvent from EventChannel', () async {
       const channelName = 'hemanthraj/flutter_compass';
       const standardCodec = StandardMethodCodec();
+      Map<dynamic, dynamic>? listenArgs;
+
+      FlutterCompass.resetEvents();
 
       // Mock EventChannel binary messenger responses
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -92,6 +95,7 @@ void main() {
         const MethodChannel(channelName),
         (MethodCall methodCall) async {
           if (methodCall.method == 'listen') {
+            listenArgs = methodCall.arguments as Map<dynamic, dynamic>?;
             // Send mock compass event through the event channel
             final ByteData eventData =
                 standardCodec.encodeSuccessEnvelope([180.0, 90.0, 15.0]);
@@ -113,6 +117,45 @@ void main() {
       expect(event.heading, 180.0);
       expect(event.headingForCameraMode, 90.0);
       expect(event.accuracy, 15.0);
+      expect(listenArgs?['headingFilter'], 0.5);
+      expect(listenArgs?['motionUpdateHz'], 20);
+      expect(listenArgs?['updateIntervalMs'], 50);
+    });
+
+    test('eventsFor passes fine preset options on listen', () async {
+      const channelName = 'hemanthraj/flutter_compass';
+      Map<dynamic, dynamic>? listenArgs;
+
+      FlutterCompass.resetEvents();
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel(channelName),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'listen') {
+            listenArgs = methodCall.arguments as Map<dynamic, dynamic>?;
+            return null;
+          } else if (methodCall.method == 'cancel') {
+            return null;
+          }
+          return null;
+        },
+      );
+
+      // Subscribe so listen is invoked.
+      final sub = FlutterCompass.eventsFor(CompassUpdateOptions.fine)!.listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+      expect(listenArgs?['headingFilter'], 0.1);
+      expect(listenArgs?['motionUpdateHz'], 30);
+      expect(listenArgs?['updateIntervalMs'], 33);
+      await sub.cancel();
+    });
+
+    test('CompassUpdateOptions presets match documented defaults', () {
+      expect(CompassUpdateOptions.balanced.headingFilter, 0.5);
+      expect(CompassUpdateOptions.fine.headingFilter, 0.1);
+      expect(CompassUpdateOptions.batterySaver.headingFilter, 1.0);
+      expect(CompassUpdateOptions.balanced, const CompassUpdateOptions());
     });
 
     test('hasSensors and isSupported return true when platform reports available',

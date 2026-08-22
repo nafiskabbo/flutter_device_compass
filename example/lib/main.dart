@@ -18,6 +18,7 @@ class _MyAppState extends State<MyApp> {
   bool? _hasSensors;
   CompassEvent? _lastRead;
   DateTime? _lastReadAt;
+  CompassUpdateOptions _options = CompassUpdateOptions.balanced;
 
   @override
   void initState() {
@@ -31,6 +32,11 @@ class _MyAppState extends State<MyApp> {
       setState(() => _hasSensors = hasSensors);
     }
     _fetchPermissionStatus();
+  }
+
+  void _selectOptions(CompassUpdateOptions options) {
+    FlutterCompass.resetEvents();
+    setState(() => _options = options);
   }
 
   @override
@@ -72,6 +78,7 @@ class _MyAppState extends State<MyApp> {
               return Column(
                 children: <Widget>[
                   _buildSensorStatusCard(),
+                  _buildUpdateProfilePicker(),
                   _buildManualReader(),
                   Expanded(child: _buildCompass()),
                 ],
@@ -121,6 +128,49 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  Widget _buildUpdateProfilePicker() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Update profile (headingFilter)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Fine 0.1°'),
+                selected: _options == CompassUpdateOptions.fine,
+                onSelected: (_) => _selectOptions(CompassUpdateOptions.fine),
+              ),
+              ChoiceChip(
+                label: const Text('Balanced 0.5°'),
+                selected: _options == CompassUpdateOptions.balanced,
+                onSelected: (_) => _selectOptions(CompassUpdateOptions.balanced),
+              ),
+              ChoiceChip(
+                label: const Text('Battery 1.0°'),
+                selected: _options == CompassUpdateOptions.batterySaver,
+                onSelected: (_) => _selectOptions(CompassUpdateOptions.batterySaver),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'filter ${_options.headingFilter}° · '
+            'motion ${_options.motionUpdateHz.toStringAsFixed(0)} Hz · '
+            'emit ≥${_options.updateIntervalMs} ms',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildManualReader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -132,7 +182,8 @@ class _MyAppState extends State<MyApp> {
             children: <Widget>[
               ElevatedButton.icon(
                 onPressed: () async {
-                  final CompassEvent tmp = await FlutterCompass.events!.first;
+                  final CompassEvent tmp =
+                      await FlutterCompass.eventsFor(_options)!.first;
                   setState(() {
                     _lastRead = tmp;
                     _lastReadAt = DateTime.now();
@@ -173,7 +224,8 @@ class _MyAppState extends State<MyApp> {
 
   Widget _buildCompass() {
     return StreamBuilder<CompassEvent>(
-      stream: FlutterCompass.events,
+      key: ValueKey(_options),
+      stream: FlutterCompass.eventsFor(_options),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error reading heading: ${snapshot.error}'));
@@ -296,4 +348,3 @@ class _MyAppState extends State<MyApp> {
     });
   }
 }
-

@@ -20,7 +20,7 @@ Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medy
 - 🎯 **Sensor Accuracy:** Exposes calibration and accuracy deviation in degrees (`accuracy`).
 - 🔍 **Hardware Detection:** Proactively check sensor availability via `FlutterCompass.hasSensors` before mounting compass views.
 - ⚡ **Robust Sensor Fallbacks:** Uses `Sensor.TYPE_ROTATION_VECTOR` on Android when available with low-pass filtered accelerometer + magnetometer fallback.
-- 🔋 **Efficient sensors:** Android registers only needed sensors and throttles emissions; iOS uses a 1° heading filter, 15 Hz motion sampling, and ~30 Hz emit throttle.
+- 🔋 **Tunable updates:** `CompassUpdateOptions` presets (`fine` 0.1°, **`balanced` 0.5° default**, `batterySaver` 1.0°) control heading filter, motion rate, and emit interval.
 - 🛡️ **Crash-Resistant:** Guarded against non-finite / `NaN` sensor readings and negative true headings.
 
 ---
@@ -71,16 +71,37 @@ No additional permissions are strictly required for sensor access. However, if y
 ```dart
 import 'package:flutter_device_compass/flutter_device_compass.dart';
 
-// Subscribe to compass updates
+// Default balanced profile (headingFilter: 0.5°)
 final subscription = FlutterCompass.events?.listen((CompassEvent event) {
   print('Heading: ${event.heading}°');
   print('Camera Mode Heading: ${event.headingForCameraMode}°');
   print('Accuracy Deviation: ±${event.accuracy}°');
 });
 
+// Or pick a preset / custom options:
+// FlutterCompass.eventsFor(CompassUpdateOptions.fine)
+// FlutterCompass.eventsFor(CompassUpdateOptions.batterySaver)
+// FlutterCompass.eventsFor(const CompassUpdateOptions(
+//   headingFilter: 0.5,
+//   motionUpdateHz: 20,
+//   updateIntervalMs: 50,
+// ))
+
 // Cancel when no longer needed
 // subscription?.cancel();
 ```
+
+#### Choosing `headingFilter` (and related knobs)
+
+| Preset | `headingFilter` | Typical feel | Battery | Defaults applied |
+| :--- | :--- | :--- | :--- | :--- |
+| `CompassUpdateOptions.fine` | **0.1°** | Very smooth / chatty needle; good for AR | Higher | motion **30 Hz**, emit ≥**33 ms** |
+| `CompassUpdateOptions.balanced` (**default**) | **0.5°** | Smooth enough for compass UIs | Medium | motion **20 Hz**, emit ≥**50 ms** |
+| `CompassUpdateOptions.batterySaver` | **1.0°** | Slightly steppier; fewer callbacks | Lower | motion **15 Hz**, emit ≥**66 ms** |
+
+- **iOS:** `headingFilter` → `CLLocationManager.headingFilter`; `motionUpdateHz` → CoreMotion sample rate (camera heading); `updateIntervalMs` caps Flutter events.
+- **Android:** `headingFilter` is a minimum heading delta between emissions; `updateIntervalMs` sets emit throttle and sensor delay hint; `motionUpdateHz` is ignored.
+- Call `FlutterCompass.resetEvents()` (or cancel listeners) before switching options so the platform restarts with the new map.
 
 ---
 

@@ -35,10 +35,14 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
     private val truncatedRotationVectorValue = FloatArray(4)
     private var lastAccuracySensorStatus = 0
     private var compassUpdateNextTimestamp: Long = 0
+    private var lastEmittedDegrees: Double? = null
     private var accelerometerReading = FloatArray(3)
     private var magneticReading = FloatArray(3)
     private var channel: EventChannel? = null
     private var methodChannel: MethodChannel? = null
+    private var headingFilterDegrees: Double = DEFAULT_HEADING_FILTER
+    private var updateIntervalMs: Long = DEFAULT_UPDATE_INTERVAL_MS
+    private var sensorDelayMicros: Int = (DEFAULT_UPDATE_INTERVAL_MS * 1000).toInt()
 
     private val isCompassSensorAvailable: Boolean
         get() = rotationSensor != null
@@ -74,6 +78,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
 
     override fun onListen(arguments: Any?, events: EventSink?) {
         events?.let {
+            applyOptions(arguments)
             unregisterListener()
             compassSensorEventListener = CompassSensorEventListener(events)
             registerListener()
@@ -83,6 +88,23 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
     override fun onCancel(arguments: Any?) {
         unregisterListener()
         compassSensorEventListener = null
+        lastEmittedDegrees = null
+        compassUpdateNextTimestamp = 0
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun applyOptions(arguments: Any?) {
+        val map = arguments as? Map<*, *> ?: return
+
+        (map["headingFilter"] as? Number)?.toDouble()?.let {
+            if (it >= 0) headingFilterDegrees = it
+        }
+        (map["updateIntervalMs"] as? Number)?.toLong()?.let {
+            if (it > 0) {
+                updateIntervalMs = it
+                sensorDelayMicros = (it * 1000L).toInt().coerceAtLeast(10_000)
+            }
+        }
     }
 
     private fun getSensors(context: Context) {
@@ -112,10 +134,10 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
         val sm = sensorManager ?: return
         val listener = compassSensorEventListener ?: return
         if (isCompassSensorAvailable) {
-            sm.registerListener(listener, rotationSensor, SENSOR_DELAY_MICROS)
+            sm.registerListener(listener, rotationSensor, sensorDelayMicros)
         } else {
-            sm.registerListener(listener, accelerometerSensor, SENSOR_DELAY_MICROS)
-            sm.registerListener(listener, magneticFieldSensor, SENSOR_DELAY_MICROS)
+            sm.registerListener(listener, accelerometerSensor, sensorDelayMicros)
+            sm.registerListener(listener, magneticFieldSensor, sensorDelayMicros)
         }
     }
 
@@ -231,7 +253,18 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
             if (now < compassUpdateNextTimestamp) {
                 return
             }
-            compassUpdateNextTimestamp = now + COMPASS_UPDATE_INTERVAL_MS
+
+            val last = lastEmittedDegrees
+            if (last != null && headingFilterDegrees > 0) {
+                var delta = kotlin.math.abs(degrees - last) % 360.0
+                if (delta > 180.0) delta = 360.0 - delta
+                if (delta < headingFilterDegrees) {
+                    return
+                }
+            }
+
+            compassUpdateNextTimestamp = now + updateIntervalMs
+            lastEmittedDegrees = degrees
 
             val data = DoubleArray(3)
             data[0] = degrees
@@ -276,9 +309,8 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
         private const val EVENT_NAME = "hemanthraj/flutter_compass"
         private const val METHOD_NAME = "hemanthraj/flutter_compass/methods"
 
-        // Hint to the system; actual delivery may be faster or slower.
-        // ~30 Hz. Throttled again in notifyCompassChangeListeners.
-        private const val SENSOR_DELAY_MICROS = 30 * 1000
-        private const val COMPASS_UPDATE_INTERVAL_MS = 33L
+        // Matches Dart CompassUpdateOptions.balanced defaults.
+        private const val DEFAULT_HEADING_FILTER = 0.5
+        private const val DEFAULT_UPDATE_INTERVAL_MS = 50L
     }
 }
