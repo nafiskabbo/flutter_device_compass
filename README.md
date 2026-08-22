@@ -20,7 +20,7 @@ Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medy
 - 🎯 **Sensor Accuracy:** Exposes calibration and accuracy deviation in degrees (`accuracy`).
 - 🔍 **Hardware Detection:** Proactively check sensor availability via `FlutterCompass.hasSensors` before mounting compass views.
 - ⚡ **Robust Sensor Fallbacks:** Uses `Sensor.TYPE_ROTATION_VECTOR` on Android when available with low-pass filtered accelerometer + magnetometer fallback.
-- 🔋 **Efficient Android sensors:** Registers only the sensors needed for the active path (no unused magnetometer when rotation vector is available) and throttles stream emissions.
+- 🔋 **Tunable updates:** `CompassUpdateOptions` presets (`fine` 0.1°, **`balanced` 0.5° default**, `batterySaver` 1.0°) control heading filter, motion rate, and emit interval.
 - 🛡️ **Crash-Resistant:** Guarded against non-finite / `NaN` sensor readings and negative true headings.
 
 ---
@@ -31,7 +31,7 @@ Add `flutter_device_compass` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_device_compass: ^2.1.1
+  flutter_device_compass: ^2.1.2
 ```
 
 ---
@@ -66,21 +66,64 @@ No additional permissions are strictly required for sensor access. However, if y
 
 ## Usage Examples
 
+### Backward compatibility (no breaking change)
+
+Existing apps keep working with **zero code changes**:
+
+```dart
+// Legacy API — still valid. EventChannel listen args are null;
+// native plugins apply built-in balanced defaults.
+FlutterCompass.events?.listen((event) { /* ... */ });
+```
+
+New update tuning is **opt-in** via nullable `[CompassUpdateOptions?]`:
+
+| Call | Platform listen arguments | Behavior |
+| :--- | :--- | :--- |
+| `FlutterCompass.events` | `null` | Same as ≤2.1.1; native defaults |
+| `FlutterCompass.eventsFor()` | `null` | Same as `events` |
+| `FlutterCompass.eventsFor(CompassUpdateOptions.fine)` | `{ headingFilter, motionUpdateHz, updateIntervalMs }` | Custom profile |
+| `FlutterCompass.eventsFor(null)` | `null` | Explicit legacy path |
+
+Native code treats each map field as optional: missing/`null` keys keep platform defaults. Old app binaries talking to a new plugin (or the reverse during upgrades) therefore stay safe as long as they use `FlutterCompass.events`.
+
 ### 1. Basic Stream Subscription
 
 ```dart
 import 'package:flutter_device_compass/flutter_device_compass.dart';
 
-// Subscribe to compass updates
+// Default — unchanged from older versions:
 final subscription = FlutterCompass.events?.listen((CompassEvent event) {
   print('Heading: ${event.heading}°');
   print('Camera Mode Heading: ${event.headingForCameraMode}°');
   print('Accuracy Deviation: ±${event.accuracy}°');
 });
 
+// Optional new API (additive):
+FlutterCompass.eventsFor(CompassUpdateOptions.fine)?.listen((event) { /* ... */ });
+FlutterCompass.eventsFor(CompassUpdateOptions.batterySaver)?.listen((event) { /* ... */ });
+FlutterCompass.eventsFor(const CompassUpdateOptions(
+  headingFilter: 0.5,
+  motionUpdateHz: 20,
+  updateIntervalMs: 50,
+))?.listen((event) { /* ... */ });
+
 // Cancel when no longer needed
 // subscription?.cancel();
+// Before switching profiles: cancel listeners, then FlutterCompass.resetEvents();
 ```
+
+#### Choosing `headingFilter` (and related knobs)
+
+| Preset | `headingFilter` | Typical feel | Battery | Defaults applied |
+| :--- | :--- | :--- | :--- | :--- |
+| `CompassUpdateOptions.fine` | **0.1°** | Very smooth / chatty needle; good for AR | Higher | motion **30 Hz**, emit ≥**33 ms** |
+| `CompassUpdateOptions.balanced` (**default**) | **0.5°** | Smooth enough for compass UIs | Medium | motion **20 Hz**, emit ≥**50 ms** |
+| `CompassUpdateOptions.batterySaver` | **1.0°** | Slightly steppier; fewer callbacks | Lower | motion **15 Hz**, emit ≥**66 ms** |
+
+- **iOS:** `headingFilter` → `CLLocationManager.headingFilter`; `motionUpdateHz` → CoreMotion sample rate (camera heading); `updateIntervalMs` caps Flutter events.
+- **Android:** `headingFilter` is a minimum heading delta between emissions; `updateIntervalMs` sets emit throttle and sensor delay hint; `motionUpdateHz` is ignored.
+- When switching options at runtime, cancel the previous subscription (or call `FlutterCompass.resetEvents()` after cancel) so the EventChannel can restart with new args.
 
 ---
 
@@ -177,7 +220,6 @@ GitHub Releases / tags track pub.dev versions. Check [Releases](https://github.c
 
 ## Roadmap
 
-- **2.1.2** — iOS orientation API updates + CoreMotion/heading throttling
 - **2.2.0** — Clean-room Android math rewrite under MIT (remove GPLv3 sources)
 
 ## Maintainer
