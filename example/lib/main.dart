@@ -7,7 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -15,28 +15,63 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _hasPermissions = false;
+  bool? _hasSensors;
   CompassEvent? _lastRead;
   DateTime? _lastReadAt;
 
   @override
   void initState() {
     super.initState();
+    _checkHardwareAndPermissions();
+  }
+
+  Future<void> _checkHardwareAndPermissions() async {
+    final hasSensors = await FlutterCompass.hasSensors;
+    if (mounted) {
+      setState(() => _hasSensors = hasSensors);
+    }
     _fetchPermissionStatus();
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
       home: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text('Device Compass'),
+          title: const Text('Flutter Device Compass'),
+          elevation: 2,
         ),
         body: Builder(
           builder: (context) {
+            if (_hasSensors == false) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sensors_off, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
+                        'Device does not have compass sensors!',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
             if (_hasPermissions) {
               return Column(
                 children: <Widget>[
+                  _buildSensorStatusCard(),
                   _buildManualReader(),
                   Expanded(child: _buildCompass()),
                 ],
@@ -50,40 +85,88 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  Widget _buildManualReader() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+  Widget _buildSensorStatusCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: _hasSensors == true ? Colors.green.shade50 : Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _hasSensors == true ? Colors.green.shade300 : Colors.amber.shade300,
+        ),
+      ),
       child: Row(
-        children: <Widget>[
-          ElevatedButton(
-            onPressed: () async {
-              final CompassEvent tmp = await FlutterCompass.events!.first;
-              setState(() {
-                _lastRead = tmp;
-                _lastReadAt = DateTime.now();
-              });
-            },
-            child: const Text('Read Value'),
+        children: [
+          Icon(
+            _hasSensors == true ? Icons.check_circle : Icons.help_outline,
+            color: _hasSensors == true ? Colors.green.shade700 : Colors.amber.shade800,
+            size: 20,
           ),
+          const SizedBox(width: 8),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    '$_lastRead',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  Text(
-                    '$_lastReadAt',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+            child: Text(
+              _hasSensors == true
+                  ? 'Hardware Sensor: Available'
+                  : 'Checking sensor hardware...',
+              style: TextStyle(
+                color: _hasSensors == true ? Colors.green.shade900 : Colors.amber.shade900,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildManualReader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Card(
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: <Widget>[
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final CompassEvent tmp = await FlutterCompass.events!.first;
+                  setState(() {
+                    _lastRead = tmp;
+                    _lastReadAt = DateTime.now();
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Read Once'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _lastRead != null
+                          ? 'Heading: ${_lastRead?.heading?.toStringAsFixed(1)}°\n'
+                              'Camera: ${_lastRead?.headingForCameraMode?.toStringAsFixed(1)}°\n'
+                              'Accuracy: ${_lastRead?.accuracy != null ? "±${_lastRead?.accuracy?.toStringAsFixed(1)}°" : "N/A"}'
+                          : 'No snapshot taken yet',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (_lastReadAt != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Read at: ${_lastReadAt!.toLocal().toIso8601String().substring(11, 19)}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -93,7 +176,7 @@ class _MyAppState extends State<MyApp> {
       stream: FlutterCompass.events,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Text('Error reading heading: ${snapshot.error}');
+          return Center(child: Text('Error reading heading: ${snapshot.error}'));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -102,29 +185,64 @@ class _MyAppState extends State<MyApp> {
           );
         }
 
-        final double? direction = snapshot.data!.heading;
+        final double? direction = snapshot.data?.heading;
 
         if (direction == null) {
           return const Center(
-            child: Text('Device does not have sensors!'),
+            child: Text('Device does not have sensors or values unavailable!'),
           );
         }
 
-        return Material(
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          elevation: 4.0,
-          child: Container(
-            padding: const EdgeInsets.all(16.0),
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
+        final double? cameraDirection = snapshot.data?.headingForCameraMode;
+        final double? accuracy = snapshot.data?.accuracy;
+
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${direction.toStringAsFixed(1)}°',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
             ),
-            child: Transform.rotate(
-              angle: direction * (math.pi / 180) * -1,
-              child: Image.asset('assets/compass.jpg'),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (cameraDirection != null)
+                  Text(
+                    'Camera: ${cameraDirection.toStringAsFixed(1)}°   ',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
+                  ),
+                Text(
+                  'Accuracy: ${accuracy != null ? "±${accuracy.toStringAsFixed(1)}°" : "Uncalibrated"}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 24),
+            Material(
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              elevation: 4.0,
+              child: Container(
+                padding: const EdgeInsets.all(16.0),
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                ),
+                child: Transform.rotate(
+                  angle: direction * (math.pi / 180) * -1,
+                  child: Image.asset(
+                    'assets/compass.jpg',
+                    width: 260,
+                    height: 260,
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -135,7 +253,21 @@ class _MyAppState extends State<MyApp> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const Text('Location Permission Required'),
+          const Icon(Icons.location_on, size: 48, color: Colors.deepPurple),
+          const SizedBox(height: 12),
+          const Text(
+            'Location Permission Required',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32.0),
+            child: Text(
+              'iOS and Android location permissions are needed to read compass heading data.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
               Permission.locationWhenInUse.request().then((_) {
@@ -144,8 +276,8 @@ class _MyAppState extends State<MyApp> {
             },
             child: const Text('Request Permissions'),
           ),
-          const SizedBox(height: 16),
-          ElevatedButton(
+          const SizedBox(height: 8),
+          TextButton(
             onPressed: () {
               openAppSettings();
             },
@@ -164,3 +296,4 @@ class _MyAppState extends State<MyApp> {
     });
   }
 }
+
