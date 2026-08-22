@@ -16,10 +16,25 @@ class FlutterCompass {
 
   FlutterCompass._();
 
-  static const EventChannel _compassChannel = const EventChannel(
+  static const EventChannel _compassChannel = EventChannel(
     'hemanthraj/flutter_compass',
   );
+  static const MethodChannel _methodChannel = MethodChannel(
+    'hemanthraj/flutter_compass/methods',
+  );
   static Stream<CompassEvent>? _stream;
+
+  /// Checks if the device has compass/heading sensors available.
+  /// Returns `true` if heading sensors are available on the device, `false` otherwise.
+  static Future<bool?> get hasSensors async {
+    if (kIsWeb) {
+      return false;
+    }
+    return await _methodChannel.invokeMethod<bool>('hasSensors');
+  }
+
+  /// Alias for [hasSensors]. Checks if compass functionality is supported.
+  static Future<bool?> get isSupported => hasSensors;
 
   /// Provides a [Stream] of compass events that can be listened to.
   static Stream<CompassEvent>? get events {
@@ -28,7 +43,7 @@ class FlutterCompass {
     }
     _stream ??= _compassChannel.receiveBroadcastStream().map(
           (dynamic data) => CompassEvent.fromList(
-            (data as List?)?.cast<double>(),
+            data as List<dynamic>?,
           ),
         );
     return _stream;

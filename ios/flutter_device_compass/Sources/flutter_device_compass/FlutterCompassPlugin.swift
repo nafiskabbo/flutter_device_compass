@@ -16,16 +16,27 @@ public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
         location.delegate = self
         location.headingFilter = 0.1
         channel.setStreamHandler(self)
-
         motion.deviceMotionUpdateInterval = 1.0 / 30.0
-        motion.startDeviceMotionUpdates(using: .xMagneticNorthZVertical)
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterEventChannel(
+        let eventChannel = FlutterEventChannel(
             name: "hemanthraj/flutter_compass",
             binaryMessenger: registrar.messenger())
-        _ = FlutterCompassPlugin(channel: channel)
+        let methodChannel = FlutterMethodChannel(
+            name: "hemanthraj/flutter_compass/methods",
+            binaryMessenger: registrar.messenger())
+        let instance = FlutterCompassPlugin(channel: eventChannel)
+        registrar.addMethodCallDelegate(instance, channel: methodChannel)
+    }
+
+    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        switch call.method {
+        case "hasSensors":
+            result(CLLocationManager.headingAvailable())
+        default:
+            result(FlutterMethodNotImplemented)
+        }
     }
 
     public func onListen(
@@ -34,12 +45,14 @@ public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
     ) -> FlutterError? {
         self.eventSink = events
         location.startUpdatingHeading()
+        motion.startDeviceMotionUpdates(using: .xMagneticNorthZVertical)
         return nil
     }
 
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         eventSink = nil
         location.stopUpdatingHeading()
+        motion.stopDeviceMotionUpdates()
         return nil
     }
 

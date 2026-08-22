@@ -21,9 +21,11 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
 import kotlin.math.abs
 
-class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
+class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodChannel.MethodCallHandler {
     private var compassSensorEventListener: SensorEventListener? = null
     private var display: Display? = null
     private var sensorManager: SensorManager? = null
@@ -38,6 +40,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
     private var accelerometerReading = FloatArray(3)
     private var magneticReading = FloatArray(3)
     private var channel: EventChannel? = null
+    private var methodChannel: MethodChannel? = null
 
     private val isCompassSensorAvailable: Boolean
         get() = rotationSensor != null
@@ -45,16 +48,31 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
     // New Plugin APIs
     override fun onAttachedToEngine(binding: FlutterPluginBinding) {
         channel = EventChannel(binding.binaryMessenger, EVENT_NAME)
+        methodChannel = MethodChannel(binding.binaryMessenger, METHOD_NAME)
         getSensors(binding.applicationContext)
         channel?.setStreamHandler(this)
+        methodChannel?.setMethodCallHandler(this)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
         unregisterListener()
         cleanSensors()
         channel?.setStreamHandler(null)
+        methodChannel?.setMethodCallHandler(null)
+        channel = null
+        methodChannel = null
     }
 
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "hasSensors" -> {
+                val available = rotationSensor != null ||
+                        (accelerometerSensor != null && magneticFieldSensor != null)
+                result.success(available)
+            }
+            else -> result.notImplemented()
+        }
+    }
 
     override fun onListen(arguments: Any?, events: EventSink?) {
         events?.let {
@@ -69,18 +87,18 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
     }
 
     private fun getSensors(context: Context) {
-        display = (context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager)
-            .getDisplay(Display.DEFAULT_DISPLAY)
-        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        rotationSensor = sensorManager!!.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        display = (context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
+            ?.getDisplay(Display.DEFAULT_DISPLAY)
+        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         if (rotationSensor == null) {
             Log.d(
                 TAG, "Rotation vector sensor not supported on device, "
                         + "falling back to accelerometer and magnetic field."
             )
-            accelerometerSensor = sensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            accelerometerSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         }
-        magneticFieldSensor = sensorManager!!.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        magneticFieldSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
     }
 
     private fun cleanSensors() {
@@ -92,23 +110,25 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
     }
 
     private fun registerListener() {
-        if (sensorManager == null) return
+        val sm = sensorManager ?: return
+        val listener = compassSensorEventListener ?: return
         // Does nothing if the sensors already registered.
-        sensorManager!!.registerListener(compassSensorEventListener, magneticFieldSensor, SENSOR_DELAY_MICROS)
+        sm.registerListener(listener, magneticFieldSensor, SENSOR_DELAY_MICROS)
         if (isCompassSensorAvailable) {
-            sensorManager!!.registerListener(compassSensorEventListener, rotationSensor, SENSOR_DELAY_MICROS)
+            sm.registerListener(listener, rotationSensor, SENSOR_DELAY_MICROS)
         } else {
-            sensorManager!!.registerListener(compassSensorEventListener, accelerometerSensor, SENSOR_DELAY_MICROS)
+            sm.registerListener(listener, accelerometerSensor, SENSOR_DELAY_MICROS)
         }
     }
 
     private fun unregisterListener() {
-        if (sensorManager == null) return
-        sensorManager!!.unregisterListener(compassSensorEventListener, magneticFieldSensor)
+        val sm = sensorManager ?: return
+        val listener = compassSensorEventListener ?: return
+        sm.unregisterListener(listener, magneticFieldSensor)
         if (isCompassSensorAvailable) {
-            sensorManager!!.unregisterListener(compassSensorEventListener, rotationSensor)
+            sm.unregisterListener(listener, rotationSensor)
         } else {
-            sensorManager!!.unregisterListener(compassSensorEventListener, accelerometerSensor)
+            sm.unregisterListener(listener, accelerometerSensor)
         }
     }
 
@@ -182,7 +202,8 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
         }
 
         private fun getDisplayRotation(): DisplayRotation {
-            return when (display!!.rotation) {
+            val rotation = display?.rotation ?: Surface.ROTATION_0
+            return when (rotation) {
                 Surface.ROTATION_90 -> DisplayRotation.ROTATION_90
                 Surface.ROTATION_180 -> DisplayRotation.ROTATION_180
                 Surface.ROTATION_270 -> DisplayRotation.ROTATION_270
@@ -239,6 +260,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler {
     companion object {
         private const val TAG = "FlutterCompass"
         private const val EVENT_NAME = "hemanthraj/flutter_compass"
+        private const val METHOD_NAME = "hemanthraj/flutter_compass/methods"
 
         // The rate sensor events will be delivered at. As the Android documentation
         // states, this is only a hint to the system and the events might actually be

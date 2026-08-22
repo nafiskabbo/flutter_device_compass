@@ -13,10 +13,20 @@ class CompassEvent {
   /// or less than the value here.
   final double? accuracy;
 
-  CompassEvent.fromList(List<double>? data)
-      : heading = data?[0] ?? null,
-        headingForCameraMode = data?[1] ?? null,
-        accuracy = (data == null) || (data[2] == -1) ? null : data[2];
+  CompassEvent.fromList(List<dynamic>? data)
+      : heading = (data != null && data.isNotEmpty && data[0] != null)
+            ? (data[0] as num).toDouble()
+            : null,
+        headingForCameraMode =
+            (data != null && data.length > 1 && data[1] != null)
+                ? (data[1] as num).toDouble()
+                : null,
+        accuracy = (data != null &&
+                data.length > 2 &&
+                data[2] != null &&
+                (data[2] as num).toDouble() != -1)
+            ? (data[2] as num).toDouble()
+            : null;
 
   @override
   String toString() {
