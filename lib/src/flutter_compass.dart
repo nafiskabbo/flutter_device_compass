@@ -28,7 +28,7 @@ class FlutterCompass {
     }
     _stream ??= _compassChannel.receiveBroadcastStream().map(
           (dynamic data) => CompassEvent.fromList(
-            data?.cast<double>(),
+            (data as List?)?.cast<double>(),
           ),
         );
     return _stream;
