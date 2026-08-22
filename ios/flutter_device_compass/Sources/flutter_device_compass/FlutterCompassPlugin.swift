@@ -48,7 +48,10 @@ public class FlutterCompassPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
         didUpdateHeading newHeading: CLHeading
     ) {
         if newHeading.headingAccuracy > 0 {
-            let trueHeading = newHeading.trueHeading
+            var trueHeading = newHeading.trueHeading
+            if trueHeading < 0 {
+                trueHeading = newHeading.magneticHeading
+            }
             var headingForCameraMode = trueHeading
             if let data = self.motion.deviceMotion?.attitude {
                 let r1 = double3x3(rows: [
