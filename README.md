@@ -20,7 +20,7 @@ Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medy
 - 🎯 **Sensor Accuracy:** Exposes calibration and accuracy deviation in degrees (`accuracy`).
 - 🔍 **Hardware Detection:** Proactively check sensor availability via `FlutterCompass.hasSensors` before mounting compass views.
 - ⚡ **Robust Sensor Fallbacks:** Uses `Sensor.TYPE_ROTATION_VECTOR` on Android when available with low-pass filtered accelerometer + magnetometer fallback.
-- 🔋 **Efficient Android sensors:** Registers only the sensors needed for the active path (no unused magnetometer when rotation vector is available) and throttles stream emissions.
+- 🔋 **Efficient sensors:** Android registers only needed sensors and throttles emissions; iOS uses a 1° heading filter, 15 Hz motion sampling, and ~30 Hz emit throttle.
 - 🛡️ **Crash-Resistant:** Guarded against non-finite / `NaN` sensor readings and negative true headings.
 
 ---
@@ -31,7 +31,7 @@ Add `flutter_device_compass` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_device_compass: ^2.1.1
+  flutter_device_compass: ^2.1.2
 ```
 
 ---
@@ -177,7 +177,6 @@ GitHub Releases / tags track pub.dev versions. Check [Releases](https://github.c
 
 ## Roadmap
 
-- **2.1.2** — iOS orientation API updates + CoreMotion/heading throttling
 - **2.2.0** — Clean-room Android math rewrite under MIT (remove GPLv3 sources)
 
 ## Maintainer

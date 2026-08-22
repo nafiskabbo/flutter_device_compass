@@ -1,3 +1,11 @@
+## 2.1.2
+
+- **iOS:**
+  - Replace deprecated `UIApplication.shared.statusBarOrientation` with `UIWindowScene.interfaceOrientation` for the same UI heading compensation (portrait / upside-down / landscape).
+  - Reduce Core Location heading spam: `headingFilter` raised from `0.1°` to `1.0°`.
+  - Lower device-motion update rate to 15 Hz (attitude is still sampled on heading events only).
+  - Throttle Flutter stream emissions to ~30 Hz to align with Android.
+
 ## 2.1.1
 
 - **Android:**
