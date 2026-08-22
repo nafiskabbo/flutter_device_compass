@@ -42,13 +42,13 @@ class FlutterCompass {
   /// Compass stream using the legacy listen path (null platform arguments).
   ///
   /// Same call site as ≤2.1.1 — **no breaking change**. Platform uses built-in
-  /// balanced defaults when arguments are null.
+  /// fine (`0.1°`) defaults when arguments are null (historical behavior).
   static Stream<CompassEvent>? get events => eventsFor();
 
   /// Compass stream with optional [CompassUpdateOptions].
   ///
   /// - `eventsFor()` / [events] → `null` EventChannel arguments (legacy-compatible).
-  /// - `eventsFor(CompassUpdateOptions.fine)` (or any non-null options) → passes a
+  /// - `eventsFor(CompassUpdateOptions.balanced)` (or any non-null options) → passes a
   ///   map of nullable-friendly fields; native ignores missing keys and keeps defaults.
   ///
   /// Additive API only. Cancel existing subscriptions (or call [resetEvents]) before

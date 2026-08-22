@@ -186,10 +186,12 @@ void main() {
     });
 
     test('CompassUpdateOptions presets match documented defaults', () {
-      expect(CompassUpdateOptions.balanced.headingFilter, 0.5);
       expect(CompassUpdateOptions.fine.headingFilter, 0.1);
+      expect(CompassUpdateOptions.balanced.headingFilter, 0.5);
       expect(CompassUpdateOptions.batterySaver.headingFilter, 1.0);
-      expect(CompassUpdateOptions.balanced, const CompassUpdateOptions());
+      expect(CompassUpdateOptions.fine, const CompassUpdateOptions());
+      expect(CompassUpdateOptions.fine.motionUpdateHz, 30);
+      expect(CompassUpdateOptions.fine.updateIntervalMs, 33);
     });
 
     test('hasSensors and isSupported return true when platform reports available',

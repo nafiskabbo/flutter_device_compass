@@ -95,7 +95,7 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
     private fun applyOptions(arguments: Any?) {
         val map = arguments as? Map<*, *>
         if (map == null) {
-            // Null listen args = legacy / default balanced profile.
+            // Null listen args = legacy / default fine profile (historical 0.1°).
             headingFilterDegrees = DEFAULT_HEADING_FILTER
             updateIntervalMs = DEFAULT_UPDATE_INTERVAL_MS
             sensorDelayMicros = (DEFAULT_UPDATE_INTERVAL_MS * 1000).toInt()
@@ -311,8 +311,8 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
         private const val EVENT_NAME = "hemanthraj/flutter_compass"
         private const val METHOD_NAME = "hemanthraj/flutter_compass/methods"
 
-        // Matches Dart CompassUpdateOptions.balanced defaults.
-        private const val DEFAULT_HEADING_FILTER = 0.5
-        private const val DEFAULT_UPDATE_INTERVAL_MS = 50L
+        // Matches Dart CompassUpdateOptions.fine / historical defaults.
+        private const val DEFAULT_HEADING_FILTER = 0.1
+        private const val DEFAULT_UPDATE_INTERVAL_MS = 33L
     }
 }

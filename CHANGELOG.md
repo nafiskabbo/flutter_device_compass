@@ -4,7 +4,9 @@
 - **Android (clean-room rewrite):**
   - New MIT heading layer under `heading/`: sealed `ScreenOrientation`, `SensorAttitude`, `CompassBearing`, and `BearingCalculator` using public `SensorManager` remapping (UI + camera `AXIS_X`/`AXIS_Z`) — not vendor default orientation helpers alone.
   - Plugin updated to the new types; `HeadingUtils` folded into `BearingCalculator`.
+  - Parity checks: UI remap axes, camera `AXIS_X`/`AXIS_Z`, and degree normalization match the prior implementation for all display rotations.
   - Unit tests rewritten for the new models; old GPL-linked tests removed.
+- **Defaults:** Restore historical **fine** profile as the null-args / constructor default (`headingFilter: 0.1°`, motion 30 Hz, emit ≥33 ms) so existing apps are not surprised. `balanced` (`0.5°`) remains an opt-in preset.
 
 ## 2.1.2
 
