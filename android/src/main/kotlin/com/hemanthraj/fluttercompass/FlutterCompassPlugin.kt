@@ -94,7 +94,14 @@ class FlutterCompassPlugin : FlutterPlugin, EventChannel.StreamHandler, MethodCh
 
     @Suppress("UNCHECKED_CAST")
     private fun applyOptions(arguments: Any?) {
-        val map = arguments as? Map<*, *> ?: return
+        val map = arguments as? Map<*, *>
+        if (map == null) {
+            // Null listen args = legacy / default balanced profile.
+            headingFilterDegrees = DEFAULT_HEADING_FILTER
+            updateIntervalMs = DEFAULT_UPDATE_INTERVAL_MS
+            sensorDelayMicros = (DEFAULT_UPDATE_INTERVAL_MS * 1000).toInt()
+            return
+        }
 
         (map["headingFilter"] as? Number)?.toDouble()?.let {
             if (it >= 0) headingFilterDegrees = it

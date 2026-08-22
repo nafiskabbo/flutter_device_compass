@@ -71,14 +71,14 @@ No additional permissions are strictly required for sensor access. However, if y
 ```dart
 import 'package:flutter_device_compass/flutter_device_compass.dart';
 
-// Default balanced profile (headingFilter: 0.5°)
+// Default balanced profile — same API as before (no breaking change):
 final subscription = FlutterCompass.events?.listen((CompassEvent event) {
   print('Heading: ${event.heading}°');
   print('Camera Mode Heading: ${event.headingForCameraMode}°');
   print('Accuracy Deviation: ±${event.accuracy}°');
 });
 
-// Or pick a preset / custom options:
+// Optional (additive): pick a preset / custom options:
 // FlutterCompass.eventsFor(CompassUpdateOptions.fine)
 // FlutterCompass.eventsFor(CompassUpdateOptions.batterySaver)
 // FlutterCompass.eventsFor(const CompassUpdateOptions(

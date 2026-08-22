@@ -85,7 +85,7 @@ void main() {
     test('events stream yields parsed CompassEvent from EventChannel', () async {
       const channelName = 'hemanthraj/flutter_compass';
       const standardCodec = StandardMethodCodec();
-      Map<dynamic, dynamic>? listenArgs;
+      Object? listenArgs = 'unset';
 
       FlutterCompass.resetEvents();
 
@@ -95,7 +95,7 @@ void main() {
         const MethodChannel(channelName),
         (MethodCall methodCall) async {
           if (methodCall.method == 'listen') {
-            listenArgs = methodCall.arguments as Map<dynamic, dynamic>?;
+            listenArgs = methodCall.arguments;
             // Send mock compass event through the event channel
             final ByteData eventData =
                 standardCodec.encodeSuccessEnvelope([180.0, 90.0, 15.0]);
@@ -117,9 +117,8 @@ void main() {
       expect(event.heading, 180.0);
       expect(event.headingForCameraMode, 90.0);
       expect(event.accuracy, 15.0);
-      expect(listenArgs?['headingFilter'], 0.5);
-      expect(listenArgs?['motionUpdateHz'], 20);
-      expect(listenArgs?['updateIntervalMs'], 50);
+      // Default path stays backward compatible: no listen arguments.
+      expect(listenArgs, isNull);
     });
 
     test('eventsFor passes fine preset options on listen', () async {
@@ -149,6 +148,16 @@ void main() {
       expect(listenArgs?['motionUpdateHz'], 30);
       expect(listenArgs?['updateIntervalMs'], 33);
       await sub.cancel();
+    });
+
+    test('legacy events getter remains usable without options API', () {
+      FlutterCompass.resetEvents();
+      expect(FlutterCompass.events, isNotNull);
+      expect(FlutterCompass.events, same(FlutterCompass.eventsFor()));
+      expect(
+        FlutterCompass.events,
+        same(FlutterCompass.eventsFor(CompassUpdateOptions.balanced)),
+      );
     });
 
     test('CompassUpdateOptions presets match documented defaults', () {

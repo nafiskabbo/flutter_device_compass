@@ -1,11 +1,12 @@
 ## 2.1.2
 
+- **Non-breaking:** Existing `FlutterCompass.events` / `hasSensors` call sites keep working with no app code changes. `CompassUpdateOptions` / `eventsFor` / `resetEvents` are additive.
 - **iOS:**
   - Replace deprecated `UIApplication.shared.statusBarOrientation` with `UIWindowScene.interfaceOrientation` for the same UI heading compensation (portrait / upside-down / landscape).
-  - Configurable update tuning via new Dart `CompassUpdateOptions` (default **balanced** `headingFilter: 0.5°`).
-  - Presets: `fine` (`0.1°`), `balanced` (`0.5°`), `batterySaver` (`1.0°`), passed through the EventChannel listen args.
+  - Configurable update tuning via new Dart `CompassUpdateOptions` (default **balanced** `headingFilter: 0.5°` when using platform defaults / null listen args).
+  - Presets: `fine` (`0.1°`), `balanced` (`0.5°`), `batterySaver` (`1.0°`), passed through EventChannel listen args only when not using the default profile.
 - **Android:**
-  - Honor the same `CompassUpdateOptions` for emit interval, sensor delay hint, and minimum heading delta.
+  - Honor the same `CompassUpdateOptions` for emit interval, sensor delay hint, and minimum heading delta when custom options are supplied; null listen args use balanced defaults.
 - **Dart & example:**
   - Add `FlutterCompass.eventsFor(options)` / `FlutterCompass.resetEvents()`.
   - Example app: Fine / Balanced / Battery profile chips.

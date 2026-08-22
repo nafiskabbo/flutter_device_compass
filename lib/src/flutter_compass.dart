@@ -38,13 +38,16 @@ class FlutterCompass {
   /// Alias for [hasSensors]. Checks if compass functionality is supported.
   static Future<bool?> get isSupported => hasSensors;
 
-  /// Compass stream using [CompassUpdateOptions.balanced] defaults (`0.5°`).
+  /// Compass stream using platform defaults (same call site as before: no args).
+  ///
+  /// Equivalent to [eventsFor] with [CompassUpdateOptions.balanced].
+  /// Existing apps that only use this getter do not need code changes.
   static Stream<CompassEvent>? get events => eventsFor();
 
-  /// Compass stream with developer-tunable update options.
+  /// Compass stream with optional developer-tunable update options.
   ///
-  /// Prefer presets: [CompassUpdateOptions.fine], [CompassUpdateOptions.balanced],
-  /// [CompassUpdateOptions.batterySaver].
+  /// This is an **additive** API. Prefer presets: [CompassUpdateOptions.fine],
+  /// [CompassUpdateOptions.balanced], [CompassUpdateOptions.batterySaver].
   ///
   /// If you change [options] after listening, cancel existing subscriptions
   /// first (or call [resetEvents]) so the platform restarts with the new values.
@@ -56,7 +59,11 @@ class FlutterCompass {
     }
     if (_stream == null || _streamOptions != options) {
       _streamOptions = options;
-      _stream = _compassChannel.receiveBroadcastStream(options.toMap()).map(
+      // Default/balanced uses null listen args (same as ≤2.1.1). Custom
+      // profiles pass a map; native falls back to balanced when args are null.
+      final Object? channelArgs =
+          options == CompassUpdateOptions.balanced ? null : options.toMap();
+      _stream = _compassChannel.receiveBroadcastStream(channelArgs).map(
             (dynamic data) => CompassEvent.fromList(
               data as List<dynamic>?,
             ),
