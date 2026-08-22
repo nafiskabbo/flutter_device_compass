@@ -1,3 +1,11 @@
+## 2.2.0
+
+- **License:** Package is **MIT-only** again. Removed GPLv3 Android sources adapted from Philipp Bobek’s Compass (`Azimuth`, `CardinalDirection`, `DisplayRotation`, `RotationVector`, `MathUtils`).
+- **Android (clean-room rewrite):**
+  - New MIT heading layer under `heading/`: sealed `ScreenOrientation`, `SensorAttitude`, `CompassBearing`, and `BearingCalculator` using public `SensorManager` remapping (UI + camera `AXIS_X`/`AXIS_Z`) — not vendor default orientation helpers alone.
+  - Plugin updated to the new types; `HeadingUtils` folded into `BearingCalculator`.
+  - Unit tests rewritten for the new models; old GPL-linked tests removed.
+
 ## 2.1.2
 
 - **Non-breaking:** Existing `FlutterCompass.events` / `hasSensors` call sites keep working with no app code changes. Listen args stay `null` on the legacy path. `CompassUpdateOptions` / `eventsFor(options?)` / `resetEvents` are additive; options map fields are optional on native.

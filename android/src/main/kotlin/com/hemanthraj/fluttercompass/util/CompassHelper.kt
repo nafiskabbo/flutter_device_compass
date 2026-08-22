@@ -1,54 +1,51 @@
+/*
+ * Copyright (c) 2026 Nafis Kabbo
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 package com.hemanthraj.fluttercompass.util
 
 import kotlin.math.atan2
 import kotlin.math.sqrt
 
+/**
+ * Lightweight sensor smoothing and a last-resort heading estimate when
+ * [android.hardware.SensorManager.getRotationMatrix] is unavailable.
+ */
 object CompassHelper {
-    //0 ≤ ALPHA ≤ 1
-    //smaller ALPHA results in smoother sensor data but slower updates
+    /** 0 ≤ ALPHA ≤ 1 — smaller is smoother but slower to react. */
     private const val ALPHA = 0.15f
+
     fun calculateHeading(accelerometerReading: FloatArray, magnetometerReading: FloatArray): Float {
-        var Ax = accelerometerReading[0]
-        var Ay = accelerometerReading[1]
-        var Az = accelerometerReading[2]
-        val Ex = magnetometerReading[0]
-        val Ey = magnetometerReading[1]
-        val Ez = magnetometerReading[2]
+        var ax = accelerometerReading[0]
+        var ay = accelerometerReading[1]
+        var az = accelerometerReading[2]
+        val ex = magnetometerReading[0]
+        val ey = magnetometerReading[1]
+        val ez = magnetometerReading[2]
 
-        //cross product of the magnetic field vector and the gravity vector
-        var Hx = Ey * Az - Ez * Ay
-        var Hy = Ez * Ax - Ex * Az
-        var Hz = Ex * Ay - Ey * Ax
+        var hx = ey * az - ez * ay
+        var hy = ez * ax - ex * az
+        var hz = ex * ay - ey * ax
 
-        //normalize the values of resulting vector
-        val invH = 1.0f / sqrt((Hx * Hx + Hy * Hy + Hz * Hz).toDouble()).toFloat()
-        Hx *= invH
-        Hy *= invH
-        Hz *= invH
+        val invH = 1.0f / sqrt((hx * hx + hy * hy + hz * hz).toDouble()).toFloat()
+        hx *= invH
+        hy *= invH
+        hz *= invH
 
-        //normalize the values of gravity vector
-        val invA = 1.0f / sqrt((Ax * Ax + Ay * Ay + Az * Az).toDouble()).toFloat()
-        Ax *= invA
-        Ay *= invA
-        Az *= invA
+        val invA = 1.0f / sqrt((ax * ax + ay * ay + az * az).toDouble()).toFloat()
+        ax *= invA
+        ay *= invA
+        az *= invA
 
-        //cross product of the gravity vector and the new vector H
-        val Mx = Ay * Hz - Az * Hy
-        val My = Az * Hx - Ax * Hz
-        val Mz = Ax * Hy - Ay * Hx
-
-        //arctangent to obtain heading in radians
-        return atan2(Hy.toDouble(), My.toDouble()).toFloat()
+        val my = az * hx - ax * hz
+        return atan2(hy.toDouble(), my.toDouble()).toFloat()
     }
 
-    fun convertRadtoDeg(rad: Float): Float {
-        return (rad / Math.PI).toFloat() * 180
-    }
+    fun convertRadtoDeg(rad: Float): Float = (rad / Math.PI).toFloat() * 180f
 
-    //map angle from [-180,180] range to [0,360] range
-    fun map180to360(angle: Float): Float {
-        return (angle + 360) % 360
-    }
+    fun map180to360(angle: Float): Float = (angle + 360f) % 360f
 
     fun lowPassFilter(input: FloatArray, output: FloatArray?): FloatArray {
         if (output == null) return input

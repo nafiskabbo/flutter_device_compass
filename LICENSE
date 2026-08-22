@@ -20,19 +20,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
---------------------------------------------------------------------------------
-
-NOTICE — Dual licensing (temporary)
-
-Most of this package is licensed under the MIT License above.
-
-Some Android model/util sources under:
-  android/src/main/kotlin/com/hemanthraj/fluttercompass/model/
-  android/src/main/kotlin/com/hemanthraj/fluttercompass/util/MathUtils.kt
-were adapted from Philipp Bobek’s “Compass” project and remain under the
-GNU General Public License v3 (see the headers in those files).
-
-Until a clean-room MIT rewrite ships (planned for 2.2.0), this package is
-effectively MIT + GPLv3 for those Android components. Future releases will
-replace that code so the package can be MIT-only again.

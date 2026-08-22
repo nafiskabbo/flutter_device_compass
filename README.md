@@ -2,13 +2,11 @@
 
 [![pub package](https://img.shields.io/pub/v/flutter_device_compass.svg?logo=dart)](https://pub.dev/packages/flutter_device_compass)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue.svg)](https://pub.dev/packages/flutter_device_compass)
-[![License](https://img.shields.io/badge/license-MIT%20%2B%20GPLv3-yellow.svg)](https://github.com/nafiskabbo/flutter_device_compass/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/nafiskabbo/flutter_device_compass/blob/master/LICENSE)
 
 A Flutter compass plugin using device sensors. Provides real-time device heading, orientation-compensated azimuth (0°–360°, where 0° is North), camera-mode heading for AR/camera overlays, and sensor accuracy.
 
 Community-maintained fork of [medyas/flutter_compass_v2](https://github.com/medyas/flutter_compass_v2) (lineage from [hemanthrajv/flutter_compass](https://github.com/hemanthrajv/flutter_compass)), republished as **`flutter_device_compass`** on pub.dev for ongoing maintenance and modern Flutter (3.24+ / 3.44+) & Gradle/Kotlin compatibility.
-
-> **License note:** The package is currently **MIT + GPLv3** because some Android model/math files retain GPLv3 headers from Philipp Bobek’s Compass project. A clean-room MIT-only rewrite is planned for **2.2.0**. See [`LICENSE`](LICENSE).
 
 ---
 
@@ -31,7 +29,7 @@ Add `flutter_device_compass` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_device_compass: ^2.1.2
+  flutter_device_compass: ^2.2.0
 ```
 
 ---
@@ -217,10 +215,6 @@ Future<void> logCurrentHeading() async {
 ## Releases
 
 GitHub Releases / tags track pub.dev versions. Check [Releases](https://github.com/nafiskabbo/flutter_device_compass/releases) for changelogs per version.
-
-## Roadmap
-
-- **2.2.0** — Clean-room Android math rewrite under MIT (remove GPLv3 sources)
 
 ## Maintainer
 
